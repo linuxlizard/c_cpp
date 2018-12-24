@@ -16,7 +16,8 @@
 #include <chrono>
 #include <boost/program_options.hpp>
 #include <cstdlib>
-#include <boost/regex.hpp>
+//#include <boost/regex.hpp>
+#include <regex>
 
 using namespace utility;                    // Common utilities like string conversions
 using namespace web;                        // Common features like URIs.
@@ -26,16 +27,19 @@ using namespace concurrency::streams;       // Asynchronous streams
 
 namespace po = boost::program_options;
 
-// https://tools.ietf.org/html/rfc3986#page-50
-boost::regex uri_regex("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?");
-
 void parse_uri(const std::string& uri)
 {
 	/* davep 20180818 ; playing with RFC3986 */
-	boost::cmatch what;
+	std::cmatch what;
 
-	// interesting that regex_match() doesn't take std::strong but wants a c_string
-	if (boost::regex_match(uri.c_str(), what, uri_regex)) {
+	// https://tools.ietf.org/html/rfc3986#page-50
+	std::regex uri_regex("^[^:/?#]+://",
+			std::regex::extended);
+//	std::regex uri_regex("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?",
+//			std::regex::extended);
+
+	// interesting that regex_match() doesn't take std::string but wants a c_string
+	if (std::regex_match(uri.c_str(), what, uri_regex)) {
 		std::cout << "Match!\n";
 	}
 

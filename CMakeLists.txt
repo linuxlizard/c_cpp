@@ -8,3 +8,8 @@ add_executable(wanstat wanstat.cc)
 target_compile_features(wanstat PUBLIC cxx_std_17)
 target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
 target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES})
+
+add_executable(uri uri.cc)
+target_compile_features(uri PUBLIC cxx_std_17)
+target_link_libraries(uri PRIVATE cpprestsdk::cpprest)
+target_link_libraries(uri PRIVATE ${Boost_LIBRARIES})
