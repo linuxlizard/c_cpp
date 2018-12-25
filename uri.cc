@@ -1,5 +1,7 @@
+/* davep 20181224 ; separate test program to learn std::regex + RFC3986 */
 #include <iostream>
 #include <regex>
+#include <boost/assert.hpp>
 
 bool parse_uri(const std::string& uri)
 {
@@ -8,12 +10,13 @@ bool parse_uri(const std::string& uri)
 //	std::cmatch what;
 
 	// https://tools.ietf.org/html/rfc3986#page-50
-	std::regex uri_regex("^(([^:/?#]+):)?(//([^/?#]*))?",
+	std::regex uri_regex("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?",
 			std::regex::extended);
 //	std::regex uri_regex("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?",
 //			std::regex::extended);
 
-	if ( ! std::regex_match(uri, what, uri_regex)) {
+	if ( !std::regex_match(uri, what, uri_regex)) {
+		std::cerr << "no match\n";
 		return false;
 	}
 
@@ -36,10 +39,34 @@ int main(int argc, char *argv[])
 {
 	std::string uri;
 
+	std::array<std::string,10> tests {
+		"http://",
+		"ftp://",
+		"sftp://",
+		"http://hythloday@www.utopia.com:1516",
+		"https://www.infradead.org/~tgr/libnl/",
+		"https://tools.ietf.org/html/rfc3986#page-50",
+		"https://www.google.com/search?client=firefox-b-1&q=std%3A%3Aarray",
+		"127.0.0.1",
+
+		// https://tools.ietf.org/html/rfc3986#page-35
+		"http://a/b/c/d;p?q",
+
+		// https://tools.ietf.org/html/rfc3986#page-45
+		"ftp://cnn.example.com&story=breaking_news@10.0.0.1/top_story.htm"
+	};
+
+	for (auto test_iter = tests.begin(); test_iter < tests.end() ; test_iter++ ) {
+		std::cout << "testing \"" << *test_iter << "\"...\n";
+		parse_uri(*test_iter);
+	}
+
+	/* also parse any from the command line */
 	for (int i=1 ; i<argc ; i++ ) {
 		uri.assign(argv[i]);
 		std::cout << "testing \"" << uri << "\"...\n";
-		parse_uri(uri);
+		bool flag = parse_uri(uri);
+		BOOST_ASSERT_MSG(flag, "u failed");
 	}
 
 	return EXIT_SUCCESS;
