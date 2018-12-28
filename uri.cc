@@ -53,10 +53,23 @@ int main(int argc, char *argv[])
 		"http://a/b/c/d;p?q",
 
 		// https://tools.ietf.org/html/rfc3986#page-45
-		"ftp://cnn.example.com&story=breaking_news@10.0.0.1/top_story.htm"
+		"ftp://cnn.example.com&story=breaking_news@10.0.0.1/top_story.htm",
 	};
 
+	std::array<std::string,1> fail_tests {
+		// username:password is deprecated so this should fail
+		"ftp://anonymous:complaints@whitehouse.gov/pub/taxreturns/",
+	};
+
+	/* these should succeed */
 	for (auto test_iter = tests.begin(); test_iter < tests.end() ; test_iter++ ) {
+		std::cout << "testing \"" << *test_iter << "\"...\n";
+		parse_uri(*test_iter);
+	}
+
+	/* these should fail */
+	/* FIXME username:password should fail but doesn't */
+	for (auto test_iter = fail_tests.begin(); test_iter < fail_tests.end() ; test_iter++ ) {
 		std::cout << "testing \"" << *test_iter << "\"...\n";
 		parse_uri(*test_iter);
 	}
