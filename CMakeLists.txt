@@ -16,3 +16,10 @@ target_link_libraries(uri PRIVATE ${Boost_LIBRARIES})
 add_executable(opts opts.cc)
 target_compile_features(opts PUBLIC cxx_std_17)
 target_link_libraries(opts PRIVATE ${Boost_LIBRARIES})
+
+add_executable(format format.cc)
+target_compile_features(format PUBLIC cxx_std_17)
+target_link_libraries(format PRIVATE ${Boost_LIBRARIES})
+
+# cmake -DCMAKE_BUILD_TYPE=Debug ..
+# cmake -DCMAKE_BUILD_TYPE=Release ..
