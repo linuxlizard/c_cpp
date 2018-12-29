@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 
+#include <boost/format.hpp>
 #include <cpprest/http_client.h>
 
 using namespace utility;                    // Common utilities like string conversions
@@ -32,6 +33,16 @@ static std::optional<json::value> get(http_client& client, uri_builder& builder)
 //	std::cout << "value=" << value << std::endl;
 
 	return value;
+}
+
+static void object_introspect(json::object& jobj)
+{
+	// dump the key+value pairs in a json::object
+	for (auto fields: jobj) {
+		utility::string_t key { fields.first };
+		json::value value { fields.second };
+		std::cout << key << "=" << value << " type="<< value.type() << "\n";
+	}
 }
 
 static bool wlansurvey(std::string& target)
@@ -106,8 +117,24 @@ static bool wlansurvey(std::string& target)
 
 		for (auto fields: status) {
 			utility::string_t key = fields.first;
-			json::value value = fields.second;
-			std::cout << key << "=" << value << "\n";
+			value = fields.second;
+//			std::cout << key << "=" << value << "\n";
+		}
+
+		json::value survey = status.at(U("survey"));
+		std::cout << "found " << survey.as_array().size() << " networks\n";
+		for (auto network: survey.as_array()) {
+			json::object element = network.as_object();
+//			object_introspect(element);
+
+			utility::string_t bssid = network.at(U("bssid")).as_string();
+			utility::string_t ssid = network.at(U("ssid")).as_string();
+			int channel = network.at(U("channel")).as_integer();
+//			int frequency = network.at(U("frequency")).as_integer();
+			int rssi = network.at(U("rssi")).as_integer();
+			utility::string_t seen = network.at(U("seen")).as_string();
+
+			std::cout << boost::format("%|30s|    %|10s| %|5s| %|5s|    %|-20s|\n") % ssid % bssid % rssi % channel % seen;
 		}
 	}
 
