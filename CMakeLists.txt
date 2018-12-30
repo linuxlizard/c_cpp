@@ -21,6 +21,12 @@ target_link_libraries(wlansurvey PRIVATE ${Boost_LIBRARIES})
 #https://stackoverflow.com/questions/23995019/what-is-the-modern-method-for-setting-general-compile-flags-in-cmake/23995391#23995391
 target_compile_options(wlansurvey PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 
+add_executable(my_gps my_gps.cc)
+target_compile_features(my_gps PUBLIC cxx_std_17)
+target_link_libraries(my_gps PRIVATE cpprestsdk::cpprest)
+target_link_libraries(my_gps PRIVATE ${Boost_LIBRARIES})
+target_compile_options(my_gps PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+
 add_executable(uri uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)
 target_link_libraries(uri PRIVATE ${Boost_LIBRARIES})
