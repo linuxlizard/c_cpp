@@ -1,3 +1,4 @@
+/* davep 20181230 ; poke at cradlepoint router wifi survey : work in progress */
 #include <iostream>
 #include <cstdlib>
 
@@ -9,19 +10,17 @@ using namespace web;                        // Common features like URIs.
 using namespace web::http;                  // Common HTTP functionality
 using namespace web::http::client;          // HTTP client features
 
-// TODO get username+password elsewhere
+// TODO get username+password from cli, env var, etc
 std::string username { U("admin") };
-std::string password { U("00000000") };
-//std::string password { U("12345") };
+//std::string password { U("00000000") };
+std::string password { U("12345") };
 
-static std::optional<json::value> get(http_client& client, uri_builder& builder)
+static std::optional<json::value> get(http_client& client, http::uri& uri)
 {
 	web::http::http_response data_response; 
 	try {
-		auto response = client.request(methods::GET, builder.to_string());
 		// blocking wait for the http
-		response.wait();
-		data_response = response.get(); 
+		data_response = client.request(methods::GET, uri.to_string()).get(); 
 	}
 	catch (web::http::http_exception & err) {
 		std::cerr << "Error! " << err.what() << std::endl;
@@ -30,11 +29,9 @@ static std::optional<json::value> get(http_client& client, uri_builder& builder)
 	}
 
 	// extract_json() returns a pplx::task<json::value>
-	auto json_response = data_response.extract_json();
 	// blocking wait for task to finish
-	json_response.wait();
 	// return the contents of the task (the template thingy)
-	json::value value = json_response.get();
+	json::value value = data_response.extract_json().get();
 //	std::cout << "value=" << value << std::endl;
 
 	return value;
@@ -100,7 +97,8 @@ bool wlansurvey(std::string& target)
 
 	builder.clear();
 	builder.set_path(U("/api/shallow/status/wlan/radio"));
-	std::optional<json::value> get_value = get(client, builder);
+	http::uri uri = builder.to_uri();
+	std::optional<json::value> get_value = get(client, uri);
 
 	if (!get_value) {
 		return EXIT_FAILURE;
@@ -116,7 +114,8 @@ bool wlansurvey(std::string& target)
 	for (int i=0 ; i<num_radios ; i++) { 
 		builder.clear();
 		builder.set_path(U("/api/status/wlan/radio/" + std::to_string(i) ));
-		get_value = get(client, builder);
+		uri = builder.to_uri();
+		get_value = get(client, uri);
 		if (!get_value) {
 			continue;
 		}
@@ -220,8 +219,8 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-//	wlansurvey(target);
-	trigger_scan(target);
+//	trigger_scan(target);
+	wlansurvey(target);
 
 	return EXIT_SUCCESS;
 }
