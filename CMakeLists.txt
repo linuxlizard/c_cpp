@@ -27,6 +27,21 @@ target_link_libraries(my_gps PRIVATE cpprestsdk::cpprest)
 target_link_libraries(my_gps PRIVATE ${Boost_LIBRARIES})
 target_compile_options(my_gps PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 
+add_executable(netrc netrc.cc)
+target_compile_features(netrc PUBLIC cxx_std_17)
+if (${CMAKE_COMPILER_IS_GNUCXX})
+	set(FSLIB "stdc++fs")
+else()
+	set(FSLIB "c++fs")
+endif()
+target_link_libraries(netrc PRIVATE ${Boost_LIBRARIES} ${FSLIB})
+target_compile_options(netrc PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+# netrc is using filesystem library. An opportunity to learn more CMake!
+# https://en.cppreference.com/w/cpp/filesystem
+# "Using this library may require additional compiler/linker options. GNU
+# implementation requires linking with -lstdc++fs and LLVM implementation
+# requires linking with -lc++fs"
+
 add_executable(uri uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)
 target_link_libraries(uri PRIVATE ${Boost_LIBRARIES})
