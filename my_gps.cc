@@ -126,6 +126,19 @@ int main(int argc, char* argv[])
 	http_response response = client.request(request).get();
 	json::value response_json = response.extract_json().get();
 	std::cout << "response value=" << response_json << std::endl;
+	if (! response_json["success"].as_bool()) {
+		std::cerr << "error! put config failed reason=" << response_json["reason"] << "\n";
+		return EXIT_FAILURE;
+	}
+
+	json::value gps_config = std::move(response_json["data"]);
+
+	// can I peek into the array of connections?
+	json::value& connections = gps_config["connections"];
+	for (auto conn : connections.as_array()) {
+		object_introspect(conn.as_object());
+	}
+
 
 	return EXIT_SUCCESS;
 }
