@@ -53,14 +53,14 @@ bool parse_uri(const std::string& uri)
 		return false;
 	}
 
+#if 0
 	std::string match_s = what.str();
 	std::cout << "Match! " << match_s << "\n";
-
 	std::cout << "Found " << what.size() << " matches\n";
-
 	for (auto iter=what.begin() ; iter != what.end() ; iter++ ) {
 		std::cout << *iter << "\n";
 	}
+#endif
 	return true;
 }
 
@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
 	std::string scheme = U("https");
 	std::string username = U("admin");
 	std::string password = U("12345");
-	int http_port = 443;
+	int http_port = 80;
 	std::string host;
 
 	if (!web::uri::validate(args.target)) {
@@ -152,8 +152,6 @@ int main(int argc, char* argv[])
 	http_port = target_uri.port();
 	std::cout << "http_port=" << http_port << "\n";
 
-	std::cout << "is_authority=" << target_uri.is_authority() << "\n";
-
 	// check for password in the URI
 	std::string user_info = target_uri.user_info();
 	auto pos = user_info.find(':');
@@ -177,7 +175,7 @@ int main(int argc, char* argv[])
 		password.assign(p);
 	}
 
-	credentials cred(username, password);
+	credentials cred{username, password};
 //	credentials cred(U("admin"), U("00000000"));
 	http_client_config config;
 	config.set_credentials(cred);
@@ -260,8 +258,9 @@ int main(int argc, char* argv[])
 	// for use with std::optional<json::value>.value_or()
 	json::value no_value(U("n/a"));
 
-	// parse the response
 	json::object status_obj = data.as_object();
+#if 0
+	// parse the response
 	for (auto ptr = status_obj.begin() ; ptr != status_obj.end() ; ptr++) {
 		utility::string_t key = ptr->first;
 		value = ptr->second;
@@ -289,6 +288,7 @@ int main(int argc, char* argv[])
 //		std::cout << "type=" << type_ << " plugged=" << plugged << "\n";
 		std::cout << "type=" << type_ << " plugged=" << plugged << " rssi=" << rssi.value_or(no_value) << "\n";
 	}
+#endif
 
 	std::cout << "router is " << connection_state << "\n";
 	boost::format formatter("%|30s| %|10s|    %|-10s| %|-10s|    %|-24s|\n");
