@@ -1,5 +1,16 @@
+# hint: command line invocation
+# cmake -DCMAKE_BUILD_TYPE=Debug ..
+# cmake -DCMAKE_BUILD_TYPE=Release ..
+
 cmake_minimum_required(VERSION 3.7)
 project(wanstat)
+
+# debian (work in progress):
+# apt install libcpprest-dev libboost-program-options-dev
+#
+# debian's cpprest doesn't install the .cmake
+# https://github.com/Microsoft/cpprestsdk/issues/686
+# set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
 
 find_package(cpprestsdk REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system program_options regex)
@@ -54,6 +65,7 @@ add_executable(format format.cc)
 target_compile_features(format PUBLIC cxx_std_17)
 target_link_libraries(format PRIVATE ${Boost_LIBRARIES})
 
-# command line invocation:
-# cmake -DCMAKE_BUILD_TYPE=Debug ..
-# cmake -DCMAKE_BUILD_TYPE=Release ..
+add_executable(sort sort.cc)
+target_compile_features(sort PUBLIC cxx_std_17)
+target_link_libraries(sort PRIVATE ${Boost_LIBRARIES})
+
