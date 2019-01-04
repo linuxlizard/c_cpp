@@ -106,6 +106,16 @@ bool parse_args(int argc, char *argv[], struct args& args)
 	return parse_uri(args.target);
 }
 
+void object_introspect(json::object& jobj)
+{
+	// dump the key+value pairs in a json::object
+	for (auto fields: jobj) {
+		utility::string_t key { fields.first };
+		json::value value { fields.second };
+		std::cout << key << "=" << value << " type="<< value.type() << "\n";
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	struct args args;
@@ -306,6 +316,15 @@ int main(int argc, char* argv[])
 		bool  plugged = status.at(U("plugged")).as_bool();
 		std::string reason = status.at(U("reason")).as_string();
 		std::string summary = status.at(U("summary")).as_string();
+		json::value uptime = status.at(U("uptime"));
+		std::cout << "uptime=" << uptime << " type=" << uptime.type() << "\n";
+		double uptime_n {0};
+		if (uptime.is_number()) {
+			uptime_n = uptime.as_double();
+		}
+
+//		object_introspect(uptime.as_object());
+
 		std::cout << formatter % key % type_ % (plugged?"true":"false") % reason % summary;
 //		std::cout << boost::format("%|30s| %|10s|    %|-10s| %|-10s|    %|-24s|\n") % key % type_ % (plugged?"true":"false") % reason % summary;
 	}
