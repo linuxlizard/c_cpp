@@ -31,6 +31,8 @@ private:
 	std::string line_failed;
 };
 
+// key: machine's value
+// value: pair of login,password
 using netrc_map  = std::map<std::string, std::pair<std::string,std::string>> ;
 
 netrc_map parse_netrc(std::vector<std::string> lines)
@@ -38,6 +40,8 @@ netrc_map parse_netrc(std::vector<std::string> lines)
 	netrc_map netrc {};
 
 	std::size_t counter {0};
+	std::string machine_name;
+	std::string login, password;
 	for ( auto line :lines) {
 		std::cout << "len=" << line.length() << " line=" << line << "\n";
 		if (line.length() == 0) {
@@ -52,14 +56,12 @@ netrc_map parse_netrc(std::vector<std::string> lines)
 		}
 
 		std::string key = line.substr(0,pos);
-		std::cout << "key=" << key << "*\n";
+		std::cout << "key=\"" << key << "\"\n";
 
 		std::size_t value_pos = line.find_first_not_of(" \t", pos);
 		std::string value = line.substr(value_pos, line.length()-value_pos+1);
-		std::cout << "value=" << value << "*\n";
+		std::cout << "value=\"" << value << "\"\n";
 
-		std::string machine_name;
-		std::string login, password;
 		if (key.compare("machine") == 0) {
 			if (counter > 0) {
 				// we have hit a new machine block so save the current
@@ -67,21 +69,24 @@ netrc_map parse_netrc(std::vector<std::string> lines)
 				netrc[machine_name] = std::make_pair(login, password);
 			}
 			// start over
-			machine_name = value;
+			machine_name = std::move(value);
 			login.clear();
 			password.clear();
+			counter++;
 		}
 		else if (key == "login") {
-			login = value;
+			login = std::move(value);
 		}
 		else if (key == "password") {
-			password = value;
+			password = std::move(value);
 		}
 		else {
 			throw parse_error(line);
 		}
 
 	}
+	// save final parse
+	netrc[machine_name] = std::make_pair(login, password);
 
 	return netrc;
 }
@@ -123,6 +128,13 @@ int main(int argc, char *argv[] )
 	auto netrc = parse_netrc(netrc_lines);
 
 	auto auth = netrc.at("172.16.22.1");
+	std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
+
+	auth = netrc.at("172.16.17.1");
+	std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
+
+	auth = netrc.at("172.19.10.119");
+	std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
 
 	// parse netrc files from cli 
 	for (int i=1 ; i<argc ; i++) {
