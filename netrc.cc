@@ -18,9 +18,28 @@
 #include <exception>
 #include <cstdlib>
 //#include <boost/filesystem.hpp>  // boost::filesystem migrated into std
-//#include <filesystem>  // gcc8 (Fedora29+)
-#include <experimental/filesystem> // gcc7 (Ubuntu 18.04)
 #include <boost/algorithm/string.hpp>
+
+// https://en.cppreference.com/w/cpp/feature_test
+#ifdef __has_include
+#  if __has_include(<filesystem>)
+#    include <filesystem>  // gcc8 (Fedora29+)
+     namespace fs = std::filesystem;
+#  elif __has_include(<experimental/filesystem>)
+#    include <experimental/filesystem> // gcc7 (Ubuntu 18.04)
+     namespace fs = std::experimental::filesystem;
+#  endif
+#else
+#error no __has_include
+#endif
+
+#if 0
+#include <filesystem>  // gcc8 (Fedora29+)
+namespace fs = std::experimental::filesystem;
+#elif __cplusplus >= 201103L
+#include <experimental/filesystem> // gcc7 (Ubuntu 18.04)
+namespace fs = std::experimental::filesystem;
+#endif
 
 class parse_error : public std::exception
 {
@@ -106,18 +125,18 @@ int main(int argc, char *argv[] )
 {
 	std::string home = std::getenv("HOME");
 
-	std::experimental::filesystem::path path(home);
+	fs::path path(home);
 	path.append(".netrc");
-	if ( !std::experimental::filesystem::exists(path) ) {
+	if ( !fs::exists(path) ) {
 		// try the windows version
 		path = home;
 		path.append("_netrc");
-		if ( !std::experimental::filesystem::exists(path) ) {
+		if ( !fs::exists(path) ) {
 			std::cerr << "no .netrc found\n"; 
 			return EXIT_FAILURE;
 		}
 	}
-	if (!std::experimental::filesystem::is_regular_file(path)) {
+	if (!fs::is_regular_file(path)) {
 		std::cerr << path << " is not a regular file\n";
 		return EXIT_FAILURE;
 	}
@@ -125,9 +144,9 @@ int main(int argc, char *argv[] )
 #if 1
 	// verify permissions (must be owner readable, only)
 	// (I think this is what curl, ftp do as well but I'm not sure)
-	std::experimental::filesystem::perms perm = std::experimental::filesystem::status(path).permissions();
-//	auto mask = std::experimental::filesystem::perms::owner_all;
-	if ( (perm & (std::experimental::filesystem::perms::others_all | std::experimental::filesystem::perms::group_all)) != std::experimental::filesystem::perms::none ) {
+	fs::perms perm = fs::status(path).permissions();
+//	auto mask = fs::perms::owner_all;
+	if ( (perm & (fs::perms::others_all | fs::perms::group_all)) != fs::perms::none ) {
 		std::cerr << path << " has wrong permissions\n";
 		return EXIT_FAILURE;
 	}
