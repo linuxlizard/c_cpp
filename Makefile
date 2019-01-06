@@ -17,6 +17,9 @@ opencv=$(shell pkg-config --cflags --libs opencv)
 evil: evil.cc
 	g++ -g -Wall -o evil -std=c++14 evil.cc -lstdc++  -lcrypto -lssl -lcpprest -lboost_system -lpthread  -lboost_program_options $(opencv)
 
+netrc:netrc.cc
+	g++ -g3 -Wall -pedantic -o netrc -std=c++17 netrc.cc -lstdc++ -lpthread -lboost_system -lboost_filesystem -lboost_regex -lstdc++fs
+
 words:words.cc
 	g++ -O3 -Wall -o words -std=c++17 words.cc -lstdc++ -lpthread -lboost_system -lboost_filesystem -lboost_regex
 #	g++ -g -Wall -o words -std=c++17 words.cc -lstdc++ -lpthread -lboost_system -lboost_filesystem -lboost_regex

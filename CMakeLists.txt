@@ -6,14 +6,14 @@ cmake_minimum_required(VERSION 3.7)
 project(wanstat)
 
 # debian (work in progress):
-# apt install libcpprest-dev libboost-program-options-dev
+# apt install build-essential libcpprest-dev libboost-program-options-dev libboost-filesystem-dev
 #
 # debian's cpprest doesn't install the .cmake
 # https://github.com/Microsoft/cpprestsdk/issues/686
-# set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
+set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
 
 find_package(cpprestsdk REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system program_options regex)
+find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem)
 
 #https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
 #-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
