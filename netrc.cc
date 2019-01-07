@@ -26,19 +26,12 @@
 #    include <filesystem>  // gcc8 (Fedora29+)
      namespace fs = std::filesystem;
 #  elif __has_include(<experimental/filesystem>)
+#error foo
 #    include <experimental/filesystem> // gcc7 (Ubuntu 18.04)
      namespace fs = std::experimental::filesystem;
 #  endif
 #else
 #error no __has_include
-#endif
-
-#if 0
-#include <filesystem>  // gcc8 (Fedora29+)
-namespace fs = std::experimental::filesystem;
-#elif __cplusplus >= 201103L
-#include <experimental/filesystem> // gcc7 (Ubuntu 18.04)
-namespace fs = std::experimental::filesystem;
 #endif
 
 class parse_error : public std::exception
@@ -62,14 +55,16 @@ private:
 // value: pair of login,password
 using netrc_map  = std::map<std::string, std::pair<std::string,std::string>> ;
 
-netrc_map parse_netrc(std::vector<std::string> lines)
+netrc_map parse_netrc(std::istream& infile)
 {
 	netrc_map netrc {};
 
+	std::string line;
 	std::size_t counter {0};
 	std::string machine_name;
 	std::string login, password;
-	for ( auto line :lines) {
+
+	while( getline(infile,line) ) {
 		// bless you, boost
 		boost::trim(line);
 
@@ -121,8 +116,44 @@ netrc_map parse_netrc(std::vector<std::string> lines)
 	return netrc;
 }
 
+void test(void)
+{
+	std::string testbuf {
+		// C++ raw string literal F T W
+R"#(machine 172.16.17.1
+login admin
+password 12345
+
+machine 172.16.22.1
+login admin
+password 12345
+
+machine 172.19.10.119
+login admin
+password 00000000)#"
+	};
+
+	std::stringstream infile{testbuf};
+
+	auto netrc = parse_netrc(infile);
+
+	std::array<std::string,3> tests { "172.16.22.1", "172.16.17.1", "172.19.10.119" };
+	for (auto s : tests) {
+		try {
+			auto auth = netrc.at(s);
+			std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
+		} catch (std::out_of_range& err ) {
+			std::cerr << "machine " << s << " not found\n";
+		};
+	}
+
+}
+
 int main(int argc, char *argv[] )
 {
+	test();
+	return 0;
+
 	std::string home = std::getenv("HOME");
 
 	fs::path path(home);
@@ -141,43 +172,33 @@ int main(int argc, char *argv[] )
 		return EXIT_FAILURE;
 	}
 
-#if 1
 	// verify permissions (must be owner readable, only)
 	// (I think this is what curl, ftp do as well but I'm not sure)
 	fs::perms perm = fs::status(path).permissions();
-//	auto mask = fs::perms::owner_all;
 	if ( (perm & (fs::perms::others_all | fs::perms::group_all)) != fs::perms::none ) {
 		std::cerr << path << " has wrong permissions\n";
 		return EXIT_FAILURE;
 	}
-#endif
+
 	std::cout << path << "\n";
 
+	// load file into vector of string
 	std::ifstream infile{path};
-	std::vector<std::string> netrc_lines;
-	for( std::string line ; getline(infile,line) ; netrc_lines.push_back(line) );
+//	std::vector<std::string> netrc_lines;
+//	for( std::string line ; getline(infile,line) ; netrc_lines.push_back(line) );
+//	std::cout << "read " << netrc_lines.size() << " lines\n";
 
-	std::cout << "read " << netrc_lines.size() << " lines\n";
-	auto netrc = parse_netrc(netrc_lines);
+	auto netrc = parse_netrc(infile);
 
 	std::array<std::string,3> tests { "172.16.22.1", "172.16.17.1", "172.19.10.119" };
 	for (auto s : tests) {
 		try {
 			auto auth = netrc.at(s);
 			std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
-		} catch (std::out_of_range ) {
+		} catch (std::out_of_range& err ) {
 			std::cerr << "machine " << s << " not found\n";
 		};
 	}
-
-//	auto auth = netrc.at("172.16.22.1");
-//	std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
-//
-//	auth = netrc.at("172.16.17.1");
-//	std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
-//
-//	auth = netrc.at("172.19.10.119");
-//	std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
 
 	// parse netrc files from cli 
 	for (int i=1 ; i<argc ; i++) {
