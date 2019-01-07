@@ -26,7 +26,6 @@
 #    include <filesystem>  // gcc8 (Fedora29+)
      namespace fs = std::filesystem;
 #  elif __has_include(<experimental/filesystem>)
-#error foo
 #    include <experimental/filesystem> // gcc7 (Ubuntu 18.04)
      namespace fs = std::experimental::filesystem;
 #  endif
