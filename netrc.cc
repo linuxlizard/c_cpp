@@ -63,6 +63,8 @@ netrc_map parse_netrc(std::istream& infile)
 	std::string machine_name;
 	std::string login, password;
 
+	std::vector<std::string> fields;
+
 	while( getline(infile,line) ) {
 		// bless you, boost
 		boost::trim(line);
@@ -71,6 +73,19 @@ netrc_map parse_netrc(std::istream& infile)
 		if (line.length() == 0) {
 			// ignore blank lines
 			continue;
+		}
+
+		// split preserves empty fields
+		boost::split(fields, line, boost::algorithm::is_space());
+		// so remove blank fields
+		fields.erase(
+			std::remove_if(
+				fields.begin(), 
+				fields.end(), 
+				[](std::string& s)->bool { return s.length() == 0; }), 
+			fields.end());
+		for (auto s: fields) {
+			std::cout << "field=" << s << "\n";
 		}
 
 		std::size_t pos = line.find_first_of(" \t");
@@ -129,7 +144,12 @@ password 12345
 
 machine 172.19.10.119
 login admin
-password 00000000)#"
+password 00000000
+
+	machine 		foo.bar.baz
+	login	dave
+	password 		this is invalid because embedded spaces
+)#"
 	};
 
 	std::stringstream infile{testbuf};
@@ -151,7 +171,6 @@ password 00000000)#"
 int main(int argc, char *argv[] )
 {
 	test();
-	return 0;
 
 	std::string home = std::getenv("HOME");
 
