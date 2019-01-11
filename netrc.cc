@@ -17,8 +17,10 @@
 #include <map>
 #include <exception>
 #include <cstdlib>
+#include <set>
 //#include <boost/filesystem.hpp>  // boost::filesystem migrated into std
 #include <boost/algorithm/string.hpp>
+#include <boost/range/adaptor/indexed.hpp>
 
 // https://en.cppreference.com/w/cpp/feature_test
 #ifdef __has_include
@@ -51,29 +53,40 @@ private:
 };
 
 // key: machine's value
-// value: pair of login,password
-using netrc_map  = std::map<std::string, std::pair<std::string,std::string>> ;
+// value: tuple of login,password,account
+// (account is optional)
+using netrc_map  = std::map<std::string, std::tuple<std::string, std::string, std::string>> ;
 
 netrc_map parse_netrc(std::istream& infile)
 {
 	netrc_map netrc {};
 
 	std::string line;
-	std::size_t counter {0};
+	std::size_t machine_counter {0};
 	std::string machine_name;
-	std::string login, password;
+	std::string login, password, account;
 
 	std::vector<std::string> fields;
 
+	// https://www.gnu.org/software/inetutils/manual/html_node/The-_002enetrc-file.html
+	//
+	// keywords: 
+	// machine default login password account macdef
+	std::set<std::string> keywords { "machine", "default", "login", "password", "account", "macdef" };
+
+	// FIXME spaces can't be in values (e.g., passwords); will need to switch to a different
+	// parsing technique to support
 	while( getline(infile,line) ) {
 		// bless you, boost
 		boost::trim(line);
 
-		std::cout << "len=" << line.length() << " line=" << line << "\n";
-		if (line.length() == 0) {
+		if (line.length() == 0 || line[0] == '#') {
 			// ignore blank lines
+			// ignore comment lines
 			continue;
 		}
+
+		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
 
 		// split preserves empty fields
 		boost::split(fields, line, boost::algorithm::is_space());
@@ -84,59 +97,93 @@ netrc_map parse_netrc(std::istream& infile)
 				fields.end(), 
 				[](std::string& s)->bool { return s.length() == 0; }), 
 			fields.end());
-		for (auto s: fields) {
-			std::cout << "field=" << s << "\n";
+
+		// output index+value like python enumerate()
+		for (auto s: fields | boost::adaptors::indexed(0) ) {
+			std::cout << "index=" << s.index() << " field=" << s.value() << "\n";
 		}
 
-		std::size_t pos = line.find_first_of(" \t");
-		if (pos == std::string::npos) {
-			// invalid line
-			throw parse_error(line);
-		}
-
-		std::string key = line.substr(0,pos);
-		std::cout << "key=\"" << key << "\"\n";
-
-		std::size_t value_pos = line.find_first_not_of(" \t", pos);
-		std::string value = line.substr(value_pos, line.length()-value_pos+1);
-		std::cout << "value=\"" << value << "\"\n";
-
-		if (key.compare("machine") == 0) {
-			if (counter > 0) {
-				// we have hit a new machine block so save the current
-				std::cout << "save machine=" << machine_name << " login=" << login << " password=" << password << "\n";
-				netrc[machine_name] = std::make_pair(login, password);
+		for (size_t i=0 ; i<fields.size() ; i++ ) {
+			if (fields[i] == "machine" || fields[i] == "default") {
+				if (machine_counter > 0) {
+					// new machine block so save previous
+					netrc[machine_name] = std::make_tuple(login, password, account);
+					std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
+				}
+				if (fields[i] == "machine") {
+					i++;
+					machine_name = std::move(fields[i]);
+				}
+				else {
+					machine_name = "default";
+				}
+				login.clear();
+				password.clear();
+				account.clear();
+				machine_counter++;
 			}
-			// start over
-			machine_name = std::move(value);
-			login.clear();
-			password.clear();
-			counter++;
-		}
-		else if (key == "login") {
-			login = std::move(value);
-		}
-		else if (key == "password") {
-			password = std::move(value);
-		}
-		else {
-			throw parse_error(line);
-		}
+			else if (fields[i] == "login") {
+				login = std::move(fields[++i]);
+			}
+			else if (fields[i] == "account") {
+				account = std::move(fields[++i]);
+			}
+			else if (fields[i] == "password") {
+				password = std::move(fields[++i]);
+			}
+			else {
+				throw parse_error(line);
+			}
 
+#if 0
+			else {
+				auto search = keywords.find(fields[i]);
+				if (search != keywords.end()) {
+					std::cout << "keyword=" << *search << " value=" << fields[i+1] << "\n";
+				}
+				else {
+					throw parse_error(line);
+				}
+				i++;
+//				value = fields[i];
+			}
+#endif
+		}
 	}
+
 	// save final parse
-	netrc[machine_name] = std::make_pair(login, password);
+	if ( ! (machine_name.empty() || login.empty() || password.empty())  ) {
+		netrc[machine_name] = std::make_tuple(login, password, account);
+		std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
+	}
 
 	return netrc;
 }
 
-void test(void)
+void verify(netrc_map& netrc)
+{
+	std::array<std::string,4> tests { "172.16.22.1", "172.16.17.1", "172.19.10.119", "default" };
+	for (auto s : tests) {
+		try {
+			auto auth = netrc.at(s);
+			std::cout << s << " username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
+		} catch (std::out_of_range& err ) {
+			std::cerr << "machine " << s << " not found\n";
+		};
+	}
+}
+
+void test_simple(void)
 {
 	std::string testbuf {
 		// C++ raw string literal F T W
 R"#(machine 172.16.17.1
 login admin
 password 12345
+
+# can have entire thing on one line
+# oh, and comments, too
+machine 192.168.0.1 login admin password 12345
 
 machine 172.16.22.1
 login admin
@@ -146,31 +193,25 @@ machine 172.19.10.119
 login admin
 password 00000000
 
-	machine 		foo.bar.baz
-	login	dave
-	password 		this is invalid because embedded spaces
+default login admin password hythloday@example.com
+
+# TODO put fail tests cases into own string
+# weird whitespace
+#	machine 		foo.bar.baz
+#	login	dave
+#	password 		this is invalid because embedded spaces
 )#"
 	};
 
 	std::stringstream infile{testbuf};
-
 	auto netrc = parse_netrc(infile);
-
-	std::array<std::string,3> tests { "172.16.22.1", "172.16.17.1", "172.19.10.119" };
-	for (auto s : tests) {
-		try {
-			auto auth = netrc.at(s);
-			std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
-		} catch (std::out_of_range& err ) {
-			std::cerr << "machine " << s << " not found\n";
-		};
-	}
-
+	verify(netrc);
 }
 
 int main(int argc, char *argv[] )
 {
-	test();
+	test_simple();
+//	return 0;
 
 	std::string home = std::getenv("HOME");
 
@@ -208,21 +249,12 @@ int main(int argc, char *argv[] )
 
 	auto netrc = parse_netrc(infile);
 
-	std::array<std::string,3> tests { "172.16.22.1", "172.16.17.1", "172.19.10.119" };
-	for (auto s : tests) {
-		try {
-			auto auth = netrc.at(s);
-			std::cout << "username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
-		} catch (std::out_of_range& err ) {
-			std::cerr << "machine " << s << " not found\n";
-		};
-	}
+	verify(netrc);
 
 	// parse netrc files from cli 
 	for (int i=1 ; i<argc ; i++) {
 		std::string f = argv[i];
 	}
-
 
 	return EXIT_SUCCESS;
 }
