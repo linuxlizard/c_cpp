@@ -5,6 +5,8 @@
 cmake_minimum_required(VERSION 3.7)
 project(wanstat)
 
+enable_testing()
+
 # debian (work in progress):
 # apt install build-essential libcpprest-dev libboost-program-options-dev libboost-filesystem-dev
 #
@@ -13,7 +15,7 @@ project(wanstat)
 set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
 
 find_package(cpprestsdk REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem test)
+find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem unit_test_framework)
 
 #https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
 #-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
@@ -54,6 +56,10 @@ target_compile_options(test_netrc PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 # "Using this library may require additional compiler/linker options. GNU
 # implementation requires linking with -lstdc++fs and LLVM implementation
 # requires linking with -lc++fs"
+add_test(
+	NAME test_netrc
+	COMMAND $<TARGET_FILE:test_netrc>
+	)
 
 add_executable(uri uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)
