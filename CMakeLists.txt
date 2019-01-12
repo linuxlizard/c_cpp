@@ -13,7 +13,7 @@ project(wanstat)
 set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
 
 find_package(cpprestsdk REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem)
+find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem test)
 
 #https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
 #-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
@@ -38,15 +38,17 @@ target_link_libraries(my_gps PRIVATE cpprestsdk::cpprest)
 target_link_libraries(my_gps PRIVATE ${Boost_LIBRARIES})
 target_compile_options(my_gps PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 
-add_executable(netrc netrc.cc)
+add_library(netrc OBJECT netrc.cc)
 target_compile_features(netrc PUBLIC cxx_std_17)
+add_executable(test_netrc $<TARGET_OBJECTS:netrc> test_netrc.cc)
+target_compile_features(test_netrc PUBLIC cxx_std_17)
 if (${CMAKE_COMPILER_IS_GNUCXX})
 	set(FSLIB "stdc++fs")
 else()
 	set(FSLIB "c++fs")
 endif()
-target_link_libraries(netrc PRIVATE ${Boost_LIBRARIES} ${FSLIB})
-target_compile_options(netrc PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+target_link_libraries(test_netrc PRIVATE ${Boost_LIBRARIES} ${FSLIB})
+target_compile_options(test_netrc PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 # netrc is using filesystem library. An opportunity to learn more CMake!
 # https://en.cppreference.com/w/cpp/filesystem
 # "Using this library may require additional compiler/linker options. GNU

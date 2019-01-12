@@ -10,7 +10,6 @@
  *
  */
 
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -18,9 +17,6 @@
 #include <exception>
 #include <cstdlib>
 #include <set>
-//#include <boost/filesystem.hpp>  // boost::filesystem migrated into std
-#include <boost/algorithm/string.hpp>
-#include <boost/range/adaptor/indexed.hpp>
 
 // https://en.cppreference.com/w/cpp/feature_test
 #ifdef __has_include
@@ -35,29 +31,13 @@
 #error no __has_include
 #endif
 
-class parse_error : public std::exception
-{
-public:
-	parse_error (std::string& failure) noexcept
-	{
-		this->line_failed = failure;
-	}
-	
-	virtual const char* what() const throw()
-	{ 
-		return this->line_failed.c_str();
-	}
+//#include <boost/filesystem.hpp>  // boost::filesystem migrated into std
+#include <boost/algorithm/string.hpp>
+#include <boost/range/adaptor/indexed.hpp>
 
-private:
-	std::string line_failed;
-};
+#include "netrc.hpp"
 
-// key: machine's value
-// value: tuple of login,password,account
-// (account is optional)
-using netrc_map  = std::map<std::string, std::tuple<std::string, std::string, std::string>> ;
-
-netrc_map parse_netrc(std::istream& infile)
+netrc_map netrc_parse(std::istream& infile)
 {
 	netrc_map netrc {};
 
@@ -160,86 +140,24 @@ netrc_map parse_netrc(std::istream& infile)
 	return netrc;
 }
 
-void verify(netrc_map& netrc)
+netrc_map netrc_parse_file( const std::string& infilename)
 {
-	std::array<std::string,4> tests { "172.16.22.1", "172.16.17.1", "172.19.10.119", "default" };
-	for (auto s : tests) {
-		try {
-			auto auth = netrc.at(s);
-			std::cout << s << " username=" << std::get<0>(auth) << " password=" << std::get<1>(auth) << "\n";
-		} catch (std::out_of_range& err ) {
-			std::cerr << "machine " << s << " not found\n";
-		};
-	}
-}
+	fs::path path {infilename};
 
-void test_simple(void)
-{
-	std::string testbuf {
-		// C++ raw string literal F T W
-R"#(machine 172.16.17.1
-login admin
-password 12345
-
-# can have entire thing on one line
-# oh, and comments, too
-machine 192.168.0.1 login admin password 12345
-
-machine 172.16.22.1
-login admin
-password 12345
-
-machine 172.19.10.119
-login admin
-password 00000000
-
-default login admin password hythloday@example.com
-
-# TODO put fail tests cases into own string
-# weird whitespace
-#	machine 		foo.bar.baz
-#	login	dave
-#	password 		this is invalid because embedded spaces
-)#"
-	};
-
-	std::stringstream infile{testbuf};
-	auto netrc = parse_netrc(infile);
-	verify(netrc);
-}
-
-int main(int argc, char *argv[] )
-{
-	test_simple();
-//	return 0;
-
-	std::string home = std::getenv("HOME");
-
-	fs::path path(home);
-	path.append(".netrc");
-	if ( !fs::exists(path) ) {
-		// try the windows version
-		path = home;
-		path.append("_netrc");
-		if ( !fs::exists(path) ) {
-			std::cerr << "no .netrc found\n"; 
-			return EXIT_FAILURE;
-		}
-	}
 	if (!fs::is_regular_file(path)) {
-		std::cerr << path << " is not a regular file\n";
-		return EXIT_FAILURE;
+		std::clog << path << " is not a regular file\n";
+		throw file_error(path);
 	}
 
 	// verify permissions (must be owner readable, only)
 	// (I think this is what curl, ftp do as well but I'm not sure)
 	fs::perms perm = fs::status(path).permissions();
 	if ( (perm & (fs::perms::others_all | fs::perms::group_all)) != fs::perms::none ) {
-		std::cerr << path << " has wrong permissions\n";
-		return EXIT_FAILURE;
+		std::clog << path << " has wrong permissions\n";
+		throw file_error(path);
 	}
 
-	std::cout << path << "\n";
+//	std::cout << infilename << "\n";
 
 	// load file into vector of string
 	std::ifstream infile{path};
@@ -247,14 +165,6 @@ int main(int argc, char *argv[] )
 //	for( std::string line ; getline(infile,line) ; netrc_lines.push_back(line) );
 //	std::cout << "read " << netrc_lines.size() << " lines\n";
 
-	auto netrc = parse_netrc(infile);
-
-	verify(netrc);
-
-	// parse netrc files from cli 
-	for (int i=1 ; i<argc ; i++) {
-		std::string f = argv[i];
-	}
-
-	return EXIT_SUCCESS;
+	return netrc_parse(infile);
 }
+
