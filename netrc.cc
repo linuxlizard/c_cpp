@@ -37,10 +37,13 @@
 
 #include "netrc.hpp"
 
+#define DEBUG
+
 netrc_map netrc_parse(std::istream& infile)
 {
 	netrc_map netrc {};
 
+	std::cout << __func__ << " " << __LINE__ << "\n";
 	std::string line;
 	std::size_t machine_counter {0};
 	std::string machine_name;
@@ -56,17 +59,25 @@ netrc_map netrc_parse(std::istream& infile)
 
 	// FIXME spaces can't be in values (e.g., passwords); will need to switch to a different
 	// parsing technique to support
+	std::size_t line_counter {0};
 	while( getline(infile,line) ) {
+		line_counter++;
+		std::cout << __func__ << " " << __LINE__ << "\n";
+		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
+
 		// bless you, boost
+		std::cout << __func__ << " " << __LINE__ << "\n";
 		boost::trim(line);
 
 		if (line.length() == 0 || line[0] == '#') {
 			// ignore blank lines
 			// ignore comment lines
+			std::cout << "drop blank//comment line\n";
 			continue;
 		}
+		std::cout << __func__ << " " << __LINE__ << "\n";
 
-		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
+//		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
 
 		// split preserves empty fields
 		boost::split(fields, line, boost::algorithm::is_space());
@@ -82,8 +93,10 @@ netrc_map netrc_parse(std::istream& infile)
 		for (auto s: fields | boost::adaptors::indexed(0) ) {
 			std::cout << "index=" << s.index() << " field=" << s.value() << "\n";
 		}
+		std::cout << __func__ << " " << __LINE__ << "\n";
 
 		for (size_t i=0 ; i<fields.size() ; i++ ) {
+			std::cout << "size=" << fields.size() << " i=" << i << " field=" << fields[i] << " line#=" << line_counter << "\n";
 			if (fields[i] == "machine" || fields[i] == "default") {
 				if (machine_counter > 0) {
 					// new machine block so save previous
@@ -91,8 +104,10 @@ netrc_map netrc_parse(std::istream& infile)
 					std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
 				}
 				if (fields[i] == "machine") {
-					i++;
-					machine_name = std::move(fields[i]);
+					if (i+1 >= fields.size() ) {
+						throw parse_error(line);
+					}
+					machine_name = std::move(fields.at(++i));
 				}
 				else {
 					machine_name = "default";
@@ -101,33 +116,25 @@ netrc_map netrc_parse(std::istream& infile)
 				password.clear();
 				account.clear();
 				machine_counter++;
+				continue;
 			}
-			else if (fields[i] == "login") {
-				login = std::move(fields[++i]);
+			// at this point we must have at least two tokens
+			if (i+1 >= fields.size() ) {
+				throw parse_error(line);
+			}
+
+			if (fields[i] == "login") {
+				login = std::move(fields.at(++i));
 			}
 			else if (fields[i] == "account") {
-				account = std::move(fields[++i]);
+				account = std::move(fields.at(++i));
 			}
 			else if (fields[i] == "password") {
-				password = std::move(fields[++i]);
+				password = std::move(fields.at(++i));
 			}
 			else {
 				throw parse_error(line);
 			}
-
-#if 0
-			else {
-				auto search = keywords.find(fields[i]);
-				if (search != keywords.end()) {
-					std::cout << "keyword=" << *search << " value=" << fields[i+1] << "\n";
-				}
-				else {
-					throw parse_error(line);
-				}
-				i++;
-//				value = fields[i];
-			}
-#endif
 		}
 	}
 
@@ -136,6 +143,7 @@ netrc_map netrc_parse(std::istream& infile)
 		netrc[machine_name] = std::make_tuple(login, password, account);
 		std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
 	}
+	std::cout << __func__ << " " << __LINE__ << "\n";
 
 	return netrc;
 }
