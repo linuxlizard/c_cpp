@@ -5,7 +5,6 @@
 //#include <exception>
 #include <cstdlib>
 #include <boost/algorithm/string.hpp>
-//#include <boost/range/adaptor/indexed.hpp>
 
 #define BOOST_TEST_MODULE test_netrc
 #define BOOST_TEST_DYN_LINK
@@ -178,7 +177,7 @@ BOOST_AUTO_TEST_CASE(test_file)
 	fs::permissions(path, fs::perms::owner_read|fs::perms::owner_write|fs::perms::group_read|fs::perms::group_write);
 //	fs::permissions(path, fs::perms::add_perms|fs::perms::group_read|fs::perms::group_write);
 
-	// verify it fails if permissions are wrong
+	// verify failure if permissions are wrong
 	BOOST_REQUIRE_THROW( netrc_parse_file(path.native()), file_error);
 
 	fs::permissions(path, fs::perms::owner_read|fs::perms::owner_write);
@@ -187,10 +186,65 @@ BOOST_AUTO_TEST_CASE(test_file)
 	auto [a,b,c] = netrc.at("default");
 	BOOST_REQUIRE(a=="admin");
 	BOOST_REQUIRE(b=="hythloday@example.com");
+	BOOST_REQUIRE(c.empty());
 
 	close(fd);
 	outfile.close();
 	fs::remove(path);
+}
+
+// boost test case fixture
+// mkstemp opens the file but I want to use <filesystem> so I can use the
+// filesystem::perms  Therefore I need the actual filename. And one open file
+// would be nice.  So I'm using boost::uuid so I have (a) one open file and (b)
+// a good guarantee of random names (yes, Boost::uuid is overkill)
+struct NetrcFile
+{
+	boost::uuids::uuid uuid;
+	fs::path path;
+	std::ofstream outfile;
+
+	NetrcFile() : uuid( boost::uuids::random_generator()() ),
+				path(fs::temp_directory_path() / boost::uuids::to_string(uuid)),
+				outfile(path)
+	{ 
+		std::cout << "path=" << path << "\n";
+	};
+
+	~NetrcFile() 
+	{
+		outfile.close();
+		fs::remove(path);
+	};
+};
+
+
+struct NetrcFileDefault : public NetrcFile
+{
+	NetrcFileDefault()
+	{
+		outfile << "default login admin password hythloday@example.com\n" << std::endl;
+	};
+};
+
+BOOST_FIXTURE_TEST_CASE(test_file_with_fixture, NetrcFile)
+{
+	outfile << "machine 192.168.0.1 login admin password 12345\n" << std::endl;
+
+	auto netrc = netrc_parse_file(path.native());
+	auto [a,b,c] = netrc.at("192.168.0.1");
+	BOOST_REQUIRE(a=="admin");
+	BOOST_REQUIRE(b=="12345");
+	BOOST_REQUIRE(c.empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(test_file_with_default_fixture, NetrcFileDefault)
+{
+	auto netrc = netrc_parse_file(path.native());
+	auto [a,b,c] = netrc.at("default");
+	BOOST_REQUIRE(a=="admin");
+	BOOST_REQUIRE(b=="hythloday@example.com");
+	BOOST_REQUIRE(c.empty());
 }
 
 int old_main(int argc, char *argv[] )
