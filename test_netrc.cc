@@ -193,11 +193,6 @@ BOOST_AUTO_TEST_CASE(test_file)
 	fs::remove(path);
 }
 
-// boost test case fixture
-// mkstemp opens the file but I want to use <filesystem> so I can use the
-// filesystem::perms  Therefore I need the actual filename. And one open file
-// would be nice.  So I'm using boost::uuid so I have (a) one open file and (b)
-// a good guarantee of random names (yes, Boost::uuid is overkill)
 struct NetrcFile
 {
 	fs::path path;
@@ -209,8 +204,14 @@ struct NetrcFile
 		char filename[FILENAME_MAX+1] = {};
 
 		std::cout << "path=" << path << "\n";
-		strcpy(filename, path.native().c_str());
+		strncpy(filename, path.native().c_str(), FILENAME_MAX);
 		fd = mkstemp(filename);
+		if (fd < 0) {
+			std::clog << "unable to create temp file=" << path << " errno=" 
+				<< errno << " error=\"" << strerror(errno) << "\n";
+			throw file_error(path);
+		}
+
 		path = filename;
 		outfile.open(path);
 	};
@@ -252,11 +253,43 @@ BOOST_FIXTURE_TEST_CASE(test_file_with_default_fixture, NetrcFileDefault)
 	BOOST_REQUIRE(c.empty());
 }
 
-int old_main(int argc, char *argv[] )
+BOOST_FIXTURE_TEST_CASE(test_file_with_macdef, NetrcFileDefault)
 {
-	test_simple();
-//	return 0;
+	outfile << "machine 192.168.0.1 login admin password 12345\n" << std::endl;
+	outfile << "macdef init\nfoo\nbar\nbaz\n\n" << std::endl;
 
+	auto netrc = netrc_parse_file(path.native());
+	auto [login,password,account] = netrc.at("default");
+	BOOST_REQUIRE(login=="admin");
+	BOOST_REQUIRE(password=="hythloday@example.com");
+	BOOST_REQUIRE(account.empty());
+
+	std::tie(login,password,account) = netrc.at("192.168.0.1");
+	BOOST_REQUIRE(login=="admin");
+	BOOST_REQUIRE(password=="12345");
+	BOOST_REQUIRE(account.empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(test_file_with_macdef_2, NetrcFileDefault)
+{
+	outfile << "macdef init\nfoo\nbar\nbaz\n\n" << std::endl;
+	outfile << "machine 192.168.0.1 login admin password 12345\n" << std::endl;
+
+	auto netrc = netrc_parse_file(path.native());
+	auto [login,password,account] = netrc.at("default");
+	BOOST_REQUIRE(login=="admin");
+	BOOST_REQUIRE(password=="hythloday@example.com");
+	BOOST_REQUIRE(account.empty());
+
+	std::tie(login,password,account) = netrc.at("192.168.0.1");
+	BOOST_REQUIRE(login=="admin");
+	BOOST_REQUIRE(password=="12345");
+	BOOST_REQUIRE(account.empty());
+}
+
+BOOST_AUTO_TEST_CASE(test_home_netrc)
+{
+	// look for a $HOME/.netrc and parse it if it exists
 	std::string home = std::getenv("HOME");
 	fs::path path(home);
 	path.append(".netrc");
@@ -266,18 +299,19 @@ int old_main(int argc, char *argv[] )
 		path.append("_netrc");
 		if ( !fs::exists(path) ) {
 			std::cerr << "no .netrc found\n"; 
-			return EXIT_FAILURE;
+			return;
 		}
 	}
 
 	auto netrc = netrc_parse_file(path.native());
-	verify(netrc);
 
-	// parse netrc files from cli 
-	for (int i=1 ; i<argc ; i++) {
-		std::string f = argv[i];
-	}
-
-	return EXIT_SUCCESS;
+//	verify(netrc);
+//
+//	// parse netrc files from cli 
+//	for (int i=1 ; i<argc ; i++) {
+//		std::string f = argv[i];
+//	}
+//
+//	return EXIT_SUCCESS;
 }
 

@@ -51,6 +51,9 @@ netrc_map netrc_parse(std::istream& infile)
 
 	std::vector<std::string> fields;
 
+	enum class State { normal, macdef };
+	State state = State::normal;
+
 	// https://www.gnu.org/software/inetutils/manual/html_node/The-_002enetrc-file.html
 	//
 	// keywords: 
@@ -62,12 +65,18 @@ netrc_map netrc_parse(std::istream& infile)
 	std::size_t line_counter {0};
 	while( getline(infile,line) ) {
 		line_counter++;
-		std::cout << __func__ << " " << __LINE__ << "\n";
 		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
 
 		// bless you, boost
-		std::cout << __func__ << " " << __LINE__ << "\n";
 		boost::trim(line);
+
+		if (state == State::macdef) {
+			// eat until blank line
+			if (!line.empty()) {
+				continue;
+			}
+			state = State::normal;
+		}
 
 		if (line.length() == 0 || line[0] == '#') {
 			// ignore blank lines
@@ -75,7 +84,6 @@ netrc_map netrc_parse(std::istream& infile)
 			std::cout << "drop blank//comment line\n";
 			continue;
 		}
-		std::cout << __func__ << " " << __LINE__ << "\n";
 
 //		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
 
@@ -89,11 +97,18 @@ netrc_map netrc_parse(std::istream& infile)
 				[](std::string& s)->bool { return s.length() == 0; }), 
 			fields.end());
 
+#ifdef DEBUG
 		// output index+value like python enumerate()
 		for (auto s: fields | boost::adaptors::indexed(0) ) {
 			std::cout << "index=" << s.index() << " field=" << s.value() << "\n";
 		}
-		std::cout << __func__ << " " << __LINE__ << "\n";
+#endif
+
+		// parse+discard macdef
+		if (fields[0] == "macdef") {
+			state = State::macdef;
+			continue;
+		}
 
 		for (size_t i=0 ; i<fields.size() ; i++ ) {
 			std::cout << "size=" << fields.size() << " i=" << i << " field=" << fields[i] << " line#=" << line_counter << "\n";
@@ -139,7 +154,7 @@ netrc_map netrc_parse(std::istream& infile)
 	}
 
 	// save final parse
-	if ( ! (machine_name.empty() || login.empty() || password.empty())  ) {
+	if ( state == State::normal && ! (machine_name.empty() || login.empty() || password.empty())  ) {
 		netrc[machine_name] = std::make_tuple(login, password, account);
 		std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
 	}
