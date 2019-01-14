@@ -200,19 +200,24 @@ BOOST_AUTO_TEST_CASE(test_file)
 // a good guarantee of random names (yes, Boost::uuid is overkill)
 struct NetrcFile
 {
-	boost::uuids::uuid uuid;
 	fs::path path;
 	std::ofstream outfile;
+	int fd;
 
-	NetrcFile() : uuid( boost::uuids::random_generator()() ),
-				path(fs::temp_directory_path() / boost::uuids::to_string(uuid)),
-				outfile(path)
+	NetrcFile() : path(fs::temp_directory_path() / "netrctestXXXXXX")
 	{ 
+		char filename[FILENAME_MAX+1] = {};
+
 		std::cout << "path=" << path << "\n";
+		strcpy(filename, path.native().c_str());
+		fd = mkstemp(filename);
+		path = filename;
+		outfile.open(path);
 	};
 
 	~NetrcFile() 
 	{
+		close(fd);
 		outfile.close();
 		fs::remove(path);
 	};
