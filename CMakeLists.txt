@@ -21,11 +21,6 @@ find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem u
 #-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
 set(MY_DEBUG_OPTIONS -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
 
-add_executable(wanstat wanstat.cc)
-target_compile_features(wanstat PUBLIC cxx_std_17)
-target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
-target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES})
-
 add_executable(wlansurvey wlansurvey.cc)
 target_compile_features(wlansurvey PUBLIC cxx_std_17)
 target_link_libraries(wlansurvey PRIVATE cpprestsdk::cpprest)
@@ -49,6 +44,7 @@ if (${CMAKE_COMPILER_IS_GNUCXX})
 else()
 	set(FSLIB "c++fs")
 endif()
+message(STATUS "Boost_Libraries=${Boost_LIBRARIES}")
 target_link_libraries(test_netrc PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 target_compile_options(test_netrc PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 # netrc is using filesystem library. An opportunity to learn more CMake!
@@ -60,6 +56,11 @@ add_test(
 	NAME test_netrc
 	COMMAND $<TARGET_FILE:test_netrc>
 	)
+
+add_executable(wanstat $<TARGET_OBJECTS:netrc> wanstat.cc)
+target_compile_features(wanstat PUBLIC cxx_std_17)
+target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
+target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 
 add_executable(uri uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)

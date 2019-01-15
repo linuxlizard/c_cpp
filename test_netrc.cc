@@ -167,7 +167,6 @@ BOOST_AUTO_TEST_CASE(test_file)
 
 	// note to future self: the '/' operator appends with directory separator
 	fs::path path { fs::temp_directory_path() / filename};
-	std::cout << "path=" << path << "\n";
 
 	std::ofstream outfile{path};
 	outfile << "default login admin password hythloday@example.com\n" << std::endl;
@@ -203,7 +202,6 @@ struct NetrcFile
 	{ 
 		char filename[FILENAME_MAX+1] = {};
 
-		std::cout << "path=" << path << "\n";
 		strncpy(filename, path.native().c_str(), FILENAME_MAX);
 		fd = mkstemp(filename);
 		if (fd < 0) {
@@ -274,11 +272,31 @@ BOOST_FIXTURE_TEST_CASE(test_file_with_macdef_2, NetrcFileDefault)
 {
 	outfile << "macdef init\nfoo\nbar\nbaz\n\n" << std::endl;
 	outfile << "machine 192.168.0.1 login admin password 12345\n" << std::endl;
+	outfile << "default login admin password hythloday@example.com\n" << std::endl;
 
 	auto netrc = netrc_parse_file(path.native());
 	auto [login,password,account] = netrc.at("default");
 	BOOST_REQUIRE(login=="admin");
 	BOOST_REQUIRE(password=="hythloday@example.com");
+	BOOST_REQUIRE(account.empty());
+
+	std::tie(login,password,account) = netrc.at("192.168.0.1");
+	BOOST_REQUIRE(login=="admin");
+	BOOST_REQUIRE(password=="12345");
+	BOOST_REQUIRE(account.empty());
+}
+
+BOOST_FIXTURE_TEST_CASE(test_file_with_macdef_3, NetrcFile)
+{
+	outfile << "machine 192.168.0.1 login admin password 12345\n";
+//	outfile << "macdef init\nfoo\nbar\nbaz\n\n";
+	outfile << "default login admin password 12345\n";
+	outfile << "macdef init\nfoo\nbar\nbaz" << std::endl;
+
+	auto netrc = netrc_parse_file(path.native());
+	auto [login,password,account] = netrc.at("default");
+	BOOST_REQUIRE(login=="admin");
+	BOOST_REQUIRE(password=="12345");
 	BOOST_REQUIRE(account.empty());
 
 	std::tie(login,password,account) = netrc.at("192.168.0.1");
@@ -304,6 +322,8 @@ BOOST_AUTO_TEST_CASE(test_home_netrc)
 	}
 
 	auto netrc = netrc_parse_file(path.native());
+
+	netrc.at("default");
 
 //	verify(netrc);
 //

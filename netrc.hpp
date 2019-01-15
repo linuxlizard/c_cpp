@@ -59,6 +59,7 @@ class file_error : public std::exception
 
 netrc_map netrc_parse(std::istream& infile);
 netrc_map netrc_parse_file(const std::string& infilename);
+netrc_map netrc_parse_default_file(void);
 
 #endif
 

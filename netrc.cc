@@ -37,13 +37,12 @@
 
 #include "netrc.hpp"
 
-#define DEBUG
+//#define DEBUG
 
 netrc_map netrc_parse(std::istream& infile)
 {
 	netrc_map netrc {};
 
-	std::cout << __func__ << " " << __LINE__ << "\n";
 	std::string line;
 	std::size_t machine_counter {0};
 	std::string machine_name;
@@ -65,7 +64,7 @@ netrc_map netrc_parse(std::istream& infile)
 	std::size_t line_counter {0};
 	while( getline(infile,line) ) {
 		line_counter++;
-		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
+//		std::cout << "len=" << line.length() << " line=\"" << line << "\"\n";
 
 		// bless you, boost
 		boost::trim(line);
@@ -81,7 +80,7 @@ netrc_map netrc_parse(std::istream& infile)
 		if (line.length() == 0 || line[0] == '#') {
 			// ignore blank lines
 			// ignore comment lines
-			std::cout << "drop blank//comment line\n";
+//			std::cout << "drop blank//comment line\n";
 			continue;
 		}
 
@@ -107,16 +106,23 @@ netrc_map netrc_parse(std::istream& infile)
 		// parse+discard macdef
 		if (fields[0] == "macdef") {
 			state = State::macdef;
+			// new block so save previous
+			netrc[machine_name] = std::make_tuple(login, password, account);
+//			std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
+			login.clear();
+			password.clear();
+			account.clear();
+			machine_counter++;
 			continue;
 		}
 
 		for (size_t i=0 ; i<fields.size() ; i++ ) {
-			std::cout << "size=" << fields.size() << " i=" << i << " field=" << fields[i] << " line#=" << line_counter << "\n";
+//			std::cout << "size=" << fields.size() << " i=" << i << " field=" << fields[i] << " line#=" << line_counter << "\n";
 			if (fields[i] == "machine" || fields[i] == "default") {
 				if (machine_counter > 0) {
-					// new machine block so save previous
+					// new block so save previous
 					netrc[machine_name] = std::make_tuple(login, password, account);
-					std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
+//					std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
 				}
 				if (fields[i] == "machine") {
 					if (i+1 >= fields.size() ) {
@@ -156,17 +162,14 @@ netrc_map netrc_parse(std::istream& infile)
 	// save final parse
 	if ( state == State::normal && ! (machine_name.empty() || login.empty() || password.empty())  ) {
 		netrc[machine_name] = std::make_tuple(login, password, account);
-		std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
+//		std::cout << "save machine=" << machine_name << " login=" << login << " account=" << account << " password=" << password << "\n";
 	}
-	std::cout << __func__ << " " << __LINE__ << "\n";
 
 	return netrc;
 }
 
-netrc_map netrc_parse_file( const std::string& infilename)
+netrc_map netrc_parse_file(const fs::path& path)
 {
-	fs::path path {infilename};
-
 	if (!fs::is_regular_file(path)) {
 		std::clog << path << " is not a regular file\n";
 		throw file_error(path);
@@ -189,5 +192,30 @@ netrc_map netrc_parse_file( const std::string& infilename)
 //	std::cout << "read " << netrc_lines.size() << " lines\n";
 
 	return netrc_parse(infile);
+}
+
+netrc_map netrc_parse_file(const std::string& infilename)
+{
+	fs::path path {infilename};
+	return netrc_parse_file(path);
+}
+
+netrc_map netrc_parse_default_file(void)
+{
+	// look for a $HOME/.netrc and parse it if it exists
+	std::string home = std::getenv("HOME");
+	fs::path path(home);
+	path.append(".netrc");
+	if ( !fs::exists(path) ) {
+		// try the windows version
+		path = home;
+		path.append("_netrc");
+		if ( !fs::exists(path) ) {
+			std::cerr << "no .netrc found\n"; 
+			throw file_error(home);
+		}
+	}
+
+	return netrc_parse_file(path);
 }
 

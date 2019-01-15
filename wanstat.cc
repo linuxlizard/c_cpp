@@ -21,6 +21,8 @@
 #include <boost/format.hpp>
 #include <boost/algorithm/string/join.hpp>
 
+#include "netrc.hpp"
+
 using namespace utility;                    // Common utilities like string conversions
 using namespace web;                        // Common features like URIs.
 using namespace web::http;                  // Common HTTP functionality
@@ -116,6 +118,37 @@ void object_introspect(json::object& jobj)
 	}
 }
 
+void check_netrc(std::string host, std::string& username, std::string& password)
+{
+	netrc_map netrc;
+
+	try {
+		netrc = netrc_parse_default_file();
+	}
+	catch (file_error& err) {
+		return;
+	}
+
+	while(1) {
+		try {
+			auto [netrc_login, netrc_password, netrc_account] = netrc.at(host);
+			username = std::move(netrc_login);
+			password = std::move(netrc_password);
+			return;
+		}
+		catch (file_error& err) {
+
+		}
+		catch (std::out_of_range & err) {
+			std::clog << "netrc has no entry for " << host << "\n";
+		}
+		if (host == "default") {
+			return;
+		}
+		host = "default";
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	struct args args;
@@ -130,7 +163,7 @@ int main(int argc, char* argv[])
 	// some defaults
 	std::string scheme = U("https");
 	std::string username = U("admin");
-	std::string password = U("12345");
+	std::string password = U("00000000");
 	int http_port = 80;
 	std::string host;
 
@@ -140,6 +173,9 @@ int main(int argc, char* argv[])
 	}
 
 	web::uri target_uri = web::uri(args.target);
+
+	// read netrc before trying higher priority methods
+	check_netrc(target_uri.host(), username, password);
 
 	//	std::map<utility::string_t, utility::string_t> target_fields = target_uri.split_query(args.target);
 	auto target_fields = target_uri.split_query(args.target);
