@@ -5,6 +5,8 @@
 #include <boost/format.hpp>
 #include <cpprest/http_client.h>
 
+#include "netrc.hpp"
+
 using namespace utility;                    // Common utilities like string conversions
 using namespace web;                        // Common features like URIs.
 using namespace web::http;                  // Common HTTP functionality
@@ -60,9 +62,43 @@ int channel_to_frequency(int f)
 		return 0;
 }
 
+void check_netrc(std::string host, std::string& username_, std::string& password_)
+{
+	netrc_map netrc;
+
+	try {
+		netrc = netrc_parse_default_file();
+	}
+	catch (file_error& err) {
+		return;
+	}
+
+	while(1) {
+		try {
+			auto [netrc_login, netrc_password, netrc_account] = netrc.at(host);
+			username_ = std::move(netrc_login);
+			password_ = std::move(netrc_password);
+			return;
+		}
+		catch (file_error& err) {
+
+		}
+		catch (std::out_of_range & err) {
+			std::clog << "netrc has no entry for " << host << "\n";
+		}
+		if (host == "default") {
+			return;
+		}
+		host = "default";
+	}
+}
+
 bool wlansurvey(std::string& target)
 {
 	web::uri target_uri = web::uri{target};
+
+	// read netrc before trying higher priority methods
+	check_netrc(target_uri.host(), username, password);
 
 	credentials cred{username, password};
 	http_client_config config;
@@ -107,8 +143,17 @@ bool wlansurvey(std::string& target)
 	success = get_value.value().at(U("success"));
 	data = get_value.value().at(U("data"));
 	std::cout << "type=" << data.type() << " data=" << data << "\n"; 
-	json::array wlan = data.as_array();
-	int num_radios = wlan.size();
+	/* davep 20190117 ; single radio products return a dict. Multiple radio
+	 * products return an array of dicts. 
+	 */
+	int num_radios;
+	if (data.type() == 3) {
+		num_radios = 1;
+	}
+	else {
+		json::array wlan = data.as_array();
+		num_radios = wlan.size();
+	}
 	std::cout << "num_radios=" << num_radios << "\n";
 
 	for (int i=0 ; i<num_radios ; i++) { 

@@ -21,14 +21,6 @@ find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem u
 #-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
 set(MY_DEBUG_OPTIONS -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
 
-add_executable(wlansurvey wlansurvey.cc)
-target_compile_features(wlansurvey PUBLIC cxx_std_17)
-target_link_libraries(wlansurvey PRIVATE cpprestsdk::cpprest)
-target_link_libraries(wlansurvey PRIVATE ${Boost_LIBRARIES})
-#https://cmake.org/cmake/help/v3.13/command/target_compile_options.html#command:target_compile_options
-#https://stackoverflow.com/questions/23995019/what-is-the-modern-method-for-setting-general-compile-flags-in-cmake/23995391#23995391
-target_compile_options(wlansurvey PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
-
 add_executable(my_gps my_gps.cc)
 target_compile_features(my_gps PUBLIC cxx_std_17)
 target_link_libraries(my_gps PRIVATE cpprestsdk::cpprest)
@@ -61,6 +53,16 @@ add_executable(wanstat $<TARGET_OBJECTS:netrc> wanstat.cc)
 target_compile_features(wanstat PUBLIC cxx_std_17)
 target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
 target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES} ${FSLIB})
+target_compile_options(wanstat PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+
+add_executable(wlansurvey $<TARGET_OBJECTS:netrc> wlansurvey.cc)
+target_compile_features(wlansurvey PUBLIC cxx_std_17)
+target_link_libraries(wlansurvey PRIVATE cpprestsdk::cpprest)
+target_link_libraries(wlansurvey PRIVATE ${Boost_LIBRARIES} ${FSLIB})
+#https://cmake.org/cmake/help/v3.13/command/target_compile_options.html#command:target_compile_options
+#https://stackoverflow.com/questions/23995019/what-is-the-modern-method-for-setting-general-compile-flags-in-cmake/23995391#23995391
+target_compile_options(wlansurvey PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+
 
 add_executable(uri uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)
