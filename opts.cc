@@ -23,7 +23,7 @@ std::pair<std::string, std::string> verbose_parser(const std::string& s)
 	return std::make_pair(std::string(), std::string());
 }
 
-bool parse_args(int argc, char *argv[])
+std::optional<opt::variables_map> parse_args(int argc, char *argv[])
 {
 	int verbose;
 
@@ -49,7 +49,7 @@ bool parse_args(int argc, char *argv[])
 	// no options, display help then quit
 	if (argc == 1) {
 		std::cout << desc << std::endl;
-		return false;
+		return {};
 	}
 
 	opt::variables_map varmap;
@@ -64,13 +64,15 @@ bool parse_args(int argc, char *argv[])
 //		}
 		// testing for const auto& ; make sure I understand how to get a
 		// reference and I'm not making a copy of 'option'
-		for (int i=0 ; i<parsed.options.size() ; i++ ) {
-			std::cout << "ptr=" << &parsed.options[i] << "\n";
-		}
+//		for (int i=0 ; i<parsed.options.size() ; i++ ) {
+//			std::cout << "ptr=" << &parsed.options[i] << "\n";
+//		}
 		for (const auto& a : parsed.options) {
 			std::cout << "key=" << a.string_key << "\n";
 			std::cout << "typeid=" << typeid(a).name() << "\n";
-			std::cout << "ptr=" << &a << "\n";
+			std::cout << "unregistered=" << a.unregistered << "\n";
+			std::cout << "original_tokens=" << a.original_tokens.size() << "\n";
+//			std::cout << "ptr=" << &a << "\n\n";
 		}
 
 		int verbose_value_counter {0};
@@ -86,28 +88,51 @@ bool parse_args(int argc, char *argv[])
 					std::cend(parsed.options), 
 					[&verbose_value_counter](const auto& option)->bool { 
 						bool flag = option.string_key == "verbose"; 
-						std::cout << "ptr=" << &option << "\n";
+//						std::cout << "ptr=" << &option << "\n";
 
+						// find options with a value e.g., -v 99 and accumulate
+						// those values as well.  So "--verbose 99 -v" would be
+						// a final value of 100.  Because I'm weird.
 						if (flag && !option.value.empty()) {
 							std::cout << "found " << option.value.size() << " values\n";
 							std::cout << "value=" << option.value.at(0) << "\n";
 
-							// find options with a value e.g., -v 99 and
-							// accumulate those values as well.  So 
-							// "--verbose 99 -v" would be a final value of 100.
-							// Because I'm weird.
-							//
 							verbose_value_counter += std::accumulate(
 									std::cbegin(option.value), 
 									std::cend(option.value),
 									0,
 									[](const int& n, const std::string& s) { return std::stoi(s) + n; });
+							// problem: -v -v 9 == 11, not 10 as intuitively
+							// expected because the -v 9  shouldn't count the
+							// "-v" of "-v 9" as a value. So fool the count_if.
+							flag = false;
 						}
 						return flag; 
 					}
 				);
 
+		// TODO a better idea: just sum up the -v/--verbose with and without a
+		// value. If there is no value, default value is 1.
+#if 0
+		verbose_count = std::accumulate(
+								std::cbegin(option.value), 
+								std::cend(option.value),
+								0,
+								[&option](const int& n, const std::string& s) { 
+									if (s == "verbose") {
+										if (option.value.empty()) {
+											return 1 + n;
+										} else {
+											return std::stoi(s) + n; 
+										}
+									}
+								}
+							);
+#endif
+
 		std::cout << "verbose_count=" << verbose_count << " verbose_value_counter=" << verbose_value_counter << "\n";
+		// sum of all the --verbose/-v flags + values
+		verbose_count += verbose_value_counter;
 
 		// store() will complain about how I'm using -v/--verbose so remove
 		// them from the parsed results.
@@ -115,13 +140,26 @@ bool parse_args(int argc, char *argv[])
 			std::remove_if(
 				parsed.options.begin(), 
 				parsed.options.end(), 
-				[](auto& option)->bool { return option.string_key == "verbose"; }), 
+				[](const auto& option)->bool { return option.string_key == "verbose"; }), 
 			parsed.options.end());
 		std::cout << "verbose_count=" << verbose_count << "\n";
 
-		opt::store(parsed, varmap);
+		// TODO can I do the count+erase in one step?
 
-		// TODO can I add my verbosity to the varmap?
+		// can I add my weird-o verbosity to the varmap?
+//		std::vector<std::string> value {std::to_string(verbose_count) };
+//		opt::option v { "verbose",  value};
+//		opt::option v { "verbose", {std::to_string(verbose_count)} };
+//		parsed.options.push_back(v);
+
+		// TODO can I add it with emplace_back() ?
+		// tripping over initializer_list confusion
+		parsed.options.emplace_back(
+				std::string("verbose"), std::vector<std::string>{std::to_string(verbose_count)}
+//				std::string("verbose"), std::vector({std::to_string(verbose_count)})
+			);
+
+		opt::store(parsed, varmap);
 
 //		opt::store(opt::command_line_parser(argc, argv).options(desc).extra_parser(verbose_parser)
 //				.run(), varmap);
@@ -130,25 +168,40 @@ bool parse_args(int argc, char *argv[])
 	}
 	catch (const opt::error &err) {
 		std::cerr << err.what() << "\n";
-		return false;
+		return {};
 	}
 
 	// https://stackoverflow.com/questions/5395503/required-and-optional-arguments-using-boost-library-program-options
 	if (varmap.count("help")) {
 		std::cout << desc << std::endl;
-		return false;
+		return {};
 	}
 
-	std::cout << "verbose=" << varmap.count("verbose") << "\n";
+	std::cout << "final: verbose=" << varmap.count("verbose") << "\n";
+	if (varmap.count("verbose")) {
+		std::cout << "varmap verbose=" << varmap["verbose"].as<int>() << "\n";
+	}
 
 	try {
 		opt::notify(varmap);    
 	}
 	catch (const opt::error &err) {
 		std::cerr << err.what() << "\n";
-		return false;
+		return {};
 	}
 
+	return varmap;
+}
+
+int main(int argc, char *argv[])
+{
+	auto parsed = parse_args(argc, argv);
+
+	if (!parsed) {
+		return EXIT_FAILURE;
+	}
+
+	opt::variables_map varmap = parsed.value();
 	std::string target;
 	if (varmap.count("target")) {
 		target = varmap["target"].as<std::string>();
@@ -164,12 +217,6 @@ bool parse_args(int argc, char *argv[])
 //	auto use_netrc2 = desc.find("n", false);
 //	std::cout << "key=" << use_netrc2.key("n") << "\n";
 
-	return true;
-}
-
-int main(int argc, char *argv[])
-{
-	bool flag = parse_args(argc, argv);
 	return EXIT_SUCCESS;
 }
 
