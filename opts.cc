@@ -3,9 +3,11 @@
 #include <typeinfo>
 #include <numeric>
 #include <cstdlib>
+#include <optional>
 #include <boost/program_options.hpp>
-#include <boost/optional.hpp>
+//#include <boost/optional.hpp>
 
+#include "opts.hpp"
 
 // https://stackoverflow.com/questions/tagged/boost-program-options
 
@@ -23,7 +25,7 @@ std::pair<std::string, std::string> verbose_parser(const std::string& s)
 	return std::make_pair(std::string(), std::string());
 }
 
-std::optional<opt::variables_map> parse_args(int argc, char *argv[])
+std::optional<struct Args> parse_args(int argc, char *argv[])
 {
 	int verbose;
 
@@ -35,7 +37,7 @@ std::optional<opt::variables_map> parse_args(int argc, char *argv[])
 		("help,h", "produce help message")
 		// https://stackoverflow.com/questions/31921200/how-to-have-an-optional-option-value-in-boost-program-options
 		(",n", "use $HOME/.netrc")
-		("sort,s", opt::value<std::string>()->value_name("sortby"), "sort by: ssid, bssid, rssi, channel, mode, security")
+		("sort,s", opt::value<std::string>()->value_name("sort-by"), "sort by: ssid, bssid, rssi, channel, mode, security")
 		("target,t", opt::value<std::string>()->required()->value_name("url"), "target")
 		// want multiple -v to increase verbosity
 //		("verbose,v", "set verbosity level")
@@ -152,8 +154,9 @@ std::optional<opt::variables_map> parse_args(int argc, char *argv[])
 //		opt::option v { "verbose", {std::to_string(verbose_count)} };
 //		parsed.options.push_back(v);
 
-		// TODO can I add it with emplace_back() ?
-		// tripping over initializer_list confusion
+		// can I add it with emplace_back() ?
+		// Tripping over initializer_list confusion.
+		// Not sure if this is doing emplace or move (???)
 		parsed.options.emplace_back(
 				std::string("verbose"), std::vector<std::string>{std::to_string(verbose_count)}
 //				std::string("verbose"), std::vector({std::to_string(verbose_count)})
@@ -190,10 +193,23 @@ std::optional<opt::variables_map> parse_args(int argc, char *argv[])
 		return {};
 	}
 
-	return varmap;
+	// convert the opt::variables_map to my struct Opts
+	struct Args opts {};
+
+	if (varmap.count("target")) {
+		opts.target = varmap["target"].as<std::string>();
+	}
+	if (varmap.count("sort")) {
+		opts.sort_by = varmap["sort"].as<std::string>();
+	}
+
+	auto use_netrc = varmap["n"];
+	std::cout << "use_netrc empty=" << use_netrc.empty() << " defaulted=" << use_netrc.defaulted() << "\n";
+
+	return opts;
 }
 
-int main(int argc, char *argv[])
+int old_main(int argc, char *argv[])
 {
 	auto parsed = parse_args(argc, argv);
 
@@ -201,21 +217,15 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	opt::variables_map varmap = parsed.value();
-	std::string target;
-	if (varmap.count("target")) {
-		target = varmap["target"].as<std::string>();
-		std::cout << "target=" << target << "\n";
+	auto const opts = parsed.value();
+	std::cout << "target=" << opts.target << "\n";
+
+	if (opts.sort_by.empty()) {
+		std::cout << "no default sort\n";
 	}
-
-//	std::cout << "verbose=" << verbose << "\n";
-//	std::cout << "n=" << varmap["n"] << "\n";
-	auto use_netrc = varmap["n"];
-	std::cout << "empty=" << use_netrc.empty() << " defaulted=" << use_netrc.defaulted() << "\n";
-	auto value = use_netrc.value();
-
-//	auto use_netrc2 = desc.find("n", false);
-//	std::cout << "key=" << use_netrc2.key("n") << "\n";
+	else {
+		std::cout << "sort by " << opts.sort_by << "\n";
+	}
 
 	return EXIT_SUCCESS;
 }

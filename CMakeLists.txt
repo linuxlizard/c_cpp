@@ -68,9 +68,16 @@ add_executable(uri uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)
 target_link_libraries(uri PRIVATE ${Boost_LIBRARIES})
 
-add_executable(opts opts.cc)
+add_library(opts OBJECT opts.cc)
 target_compile_features(opts PUBLIC cxx_std_17)
-target_link_libraries(opts PRIVATE ${Boost_LIBRARIES})
+add_executable(test_opts $<TARGET_OBJECTS:opts> test_opts.cc)
+target_compile_features(test_opts PUBLIC cxx_std_17)
+target_link_libraries(test_opts PRIVATE ${Boost_LIBRARIES})
+target_compile_options(test_opts PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+add_test(
+	NAME test_opts
+	COMMAND $<TARGET_FILE:test_opts>
+	)
 
 add_executable(format format.cc)
 target_compile_features(format PUBLIC cxx_std_17)
