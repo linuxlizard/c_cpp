@@ -158,42 +158,9 @@ default login admin password hythloday@example.com
 	BOOST_REQUIRE_THROW( netrc.at("ignore.example.com"), std::out_of_range);
 }
 
-BOOST_AUTO_TEST_CASE(test_file)
+class NetrcFile
 {
-	// create a temp file with test stuff
-	char filename[] { "netrctestXXXXXX" };
-
-	int fd = mkstemp(filename);
-
-	// note to future self: the '/' operator appends with directory separator
-	fs::path path { fs::temp_directory_path() / filename};
-
-	std::ofstream outfile{path};
-	outfile << "default login admin password hythloday@example.com\n" << std::endl;
-
-	// file should be created with 0600 so change to incorrect permissions
-	// davep 20190113 ; perms::add_perms doesn't seem to exist yet so big hammer set the perms
-	fs::permissions(path, fs::perms::owner_read|fs::perms::owner_write|fs::perms::group_read|fs::perms::group_write);
-//	fs::permissions(path, fs::perms::add_perms|fs::perms::group_read|fs::perms::group_write);
-
-	// verify failure if permissions are wrong
-	BOOST_REQUIRE_THROW( netrc_parse_file(path.native()), file_error);
-
-	fs::permissions(path, fs::perms::owner_read|fs::perms::owner_write);
-
-	auto netrc = netrc_parse_file(path.native());
-	auto [a,b,c] = netrc.at("default");
-	BOOST_REQUIRE(a=="admin");
-	BOOST_REQUIRE(b=="hythloday@example.com");
-	BOOST_REQUIRE(c.empty());
-
-	close(fd);
-	outfile.close();
-	fs::remove(path);
-}
-
-struct NetrcFile
-{
+public:
 	fs::path path;
 	std::ofstream outfile;
 	int fd;
@@ -212,24 +179,53 @@ struct NetrcFile
 
 		path = filename;
 		outfile.open(path);
+		std::cout << "NetrcFile " << path << "\n";
 	};
 
 	~NetrcFile() 
 	{
+		std::cout << "~NetrcFile " << path << "\n";
 		close(fd);
 		outfile.close();
-		fs::remove(path);
+		bool success = fs::remove(path);
+		if (!success) {
+			// can't throw in a destuctor so we'll just complain loudly
+			std::cerr << "failed to remove the file=" << path << std::endl;
+		}
 	};
 };
 
 
-struct NetrcFileDefault : public NetrcFile
+class NetrcFileDefault : public NetrcFile
 {
+public:
 	NetrcFileDefault()
 	{
 		outfile << "default login admin password hythloday@example.com\n" << std::endl;
 	};
 };
+
+BOOST_FIXTURE_TEST_CASE(test_file, NetrcFile)
+{
+	outfile << "default login admin password hythloday@example.com\n" << std::endl;
+
+	// file should be created with 0600 so change to incorrect permissions
+	// davep 20190113 ; perms::add_perms doesn't seem to exist yet so big hammer set the perms
+	fs::permissions(path, fs::perms::owner_read|fs::perms::owner_write|fs::perms::group_read|fs::perms::group_write);
+//	fs::permissions(path, fs::perms::add_perms|fs::perms::group_read|fs::perms::group_write);
+
+	// verify failure if permissions are wrong
+	BOOST_REQUIRE_THROW( netrc_parse_file(path.native()), file_error);
+
+	fs::permissions(path, fs::perms::owner_read|fs::perms::owner_write);
+
+	auto netrc = netrc_parse_file(path.native());
+	auto [a,b,c] = netrc.at("default");
+	std::cout << a << " " << b << " " << c << "\n";
+	BOOST_REQUIRE(a=="admin");
+	BOOST_REQUIRE(b=="hythloday@example.com");
+	BOOST_REQUIRE(c.empty());
+}
 
 BOOST_FIXTURE_TEST_CASE(test_file_with_fixture, NetrcFile)
 {
