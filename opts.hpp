@@ -1,17 +1,24 @@
-#ifndef OPTS_H
-#define OPTS_H
+#pragma once
+
+#include <iostream>
+#include <ostream>
+#include <optional>
 
 // parse the cli into this struct so the caller can be independent of
 // boost/program_options.hpp
 struct Args
 {
+public:
 	std::string target;
 	std::string sort_by;
 	unsigned int verbose;
 	bool use_netrc;
+
+	friend std::ostream& operator<<(std::ostream& stream, const struct Args& args) { 
+		stream << "target=" << args.target;
+		return stream; 
+	};
 };
 
-//std::optional<struct Args args> parse_args(int argc, char *argv[]);
-
-#endif
+std::optional<struct Args> parse_args(int argc, const char * const argv[]);
 

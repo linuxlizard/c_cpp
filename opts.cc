@@ -1,4 +1,8 @@
 /* davep 20181224 ; learning how to use boost::program_options */
+/* davep 20190131 ; TODO need to clean up this file; lots of extraneous stuff I
+ * added while learning program_options 
+ */
+
 #include <iostream>
 #include <typeinfo>
 #include <numeric>
@@ -25,7 +29,7 @@ std::pair<std::string, std::string> verbose_parser(const std::string& s)
 	return std::make_pair(std::string(), std::string());
 }
 
-std::optional<struct Args> parse_args(int argc, char *argv[])
+std::optional<struct Args> parse_args(int argc, const char * const argv[])
 {
 	int verbose;
 
@@ -40,8 +44,8 @@ std::optional<struct Args> parse_args(int argc, char *argv[])
 		("sort,s", opt::value<std::string>()->value_name("sort-by"), "sort by: ssid, bssid, rssi, channel, mode, security")
 		("target,t", opt::value<std::string>()->required()->value_name("url"), "target")
 		// want multiple -v to increase verbosity
-//		("verbose,v", "set verbosity level")
-		("verbose,v", opt::value<int>(&verbose)->multitoken()->default_value(0)->implicit_value(1)->composing()->value_name("level"), "set verbosity level")
+		("verbose,v", "set verbosity level")
+//		("verbose,v", opt::value<int>(&verbose)->multitoken()->default_value(0)->implicit_value(1)->composing()->value_name("level"), "set verbosity (debug) level")
 //		("verbose,v", opt::value<int>(&verbose)->default_value(0)->implicit_value(1)->value_name("level"), "set verbose level")
 	;
 
@@ -181,9 +185,9 @@ std::optional<struct Args> parse_args(int argc, char *argv[])
 	}
 
 	std::cout << "final: verbose=" << varmap.count("verbose") << "\n";
-	if (varmap.count("verbose")) {
-		std::cout << "varmap verbose=" << varmap["verbose"].as<int>() << "\n";
-	}
+//	if (varmap.count("verbose")) {
+//		std::cout << "varmap verbose=" << varmap["verbose"].as<int>() << "\n";
+//	}
 
 	try {
 		opt::notify(varmap);    
@@ -195,17 +199,23 @@ std::optional<struct Args> parse_args(int argc, char *argv[])
 
 	// convert the opt::variables_map to my struct Opts
 	struct Args opts {};
+	std::cout << opts << "\n";
 
 	if (varmap.count("target")) {
 		opts.target = varmap["target"].as<std::string>();
 	}
+	std::cout << opts << "\n";
+
 	if (varmap.count("sort")) {
 		opts.sort_by = varmap["sort"].as<std::string>();
 	}
 
+	std::cout << opts << "\n";
+
 	auto use_netrc = varmap["n"];
 	std::cout << "use_netrc empty=" << use_netrc.empty() << " defaulted=" << use_netrc.defaulted() << "\n";
 
+//	opts.verbose = verbose_count;
 	return opts;
 }
 
