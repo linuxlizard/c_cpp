@@ -25,7 +25,12 @@ std::pair<std::string, std::string> verbose_parser(const std::string& s)
 //	if (s.find("-v") == 0) {
 //		return std::make_pair( std::string("-v"), std::string("1"));
 //	}
-//
+
+	// taking apart how program_options/src/cmdline.cpp  parse_short_option() works
+	std::string name = s.substr(0,2);
+	std::string adjacent = s.substr(2);
+	std::cout << "name=" << name << " adjacent=" << adjacent << "\n";
+
 	return std::make_pair(std::string(), std::string());
 }
 
@@ -39,13 +44,14 @@ std::optional<struct Args> parse_args(int argc, const char * const argv[])
 	opt::options_description desc{"Allowed options", 90}; // 90 default line length
 	desc.add_options()
 		("help,h", "produce help message")
-		// https://stackoverflow.com/questions/31921200/how-to-have-an-optional-option-value-in-boost-program-options
+		// want only -n with no arg and no long option
 		(",n", "use $HOME/.netrc")
 		("sort,s", opt::value<std::string>()->value_name("sort-by"), "sort by: ssid, bssid, rssi, channel, mode, security")
 		("target,t", opt::value<std::string>()->required()->value_name("url"), "target")
 		// want multiple -v to increase verbosity
-		("verbose,v", "set verbosity level")
-//		("verbose,v", opt::value<int>(&verbose)->multitoken()->default_value(0)->implicit_value(1)->composing()->value_name("level"), "set verbosity (debug) level")
+		// https://stackoverflow.com/questions/31921200/how-to-have-an-optional-option-value-in-boost-program-options
+//		("verbose,v", "set verbosity level")
+		("verbose,v", opt::value<int>(&verbose)->multitoken()->default_value(0)->implicit_value(1)->composing()->value_name("level"), "set verbosity (debug) level")
 //		("verbose,v", opt::value<int>(&verbose)->default_value(0)->implicit_value(1)->value_name("level"), "set verbose level")
 	;
 
@@ -64,20 +70,19 @@ std::optional<struct Args> parse_args(int argc, const char * const argv[])
 		auto parsed = opt::command_line_parser(argc, argv).options(desc).extra_parser(verbose_parser).run();
 		// run() returns basic_parsed_options with field .options which is a vector<option>
 
-//		for (auto a=std::cbegin(parsed.options) ; a != std::cend(parsed.options) ; ++a) {
-//			std::cout << "key=" << a->string_key << "\n";
-//			std::cout << "typeid=" << typeid(*a).name() << "\n";
-//		}
 		// testing for const auto& ; make sure I understand how to get a
 		// reference and I'm not making a copy of 'option'
 //		for (int i=0 ; i<parsed.options.size() ; i++ ) {
 //			std::cout << "ptr=" << &parsed.options[i] << "\n";
 //		}
-		for (const auto& a : parsed.options) {
-			std::cout << "key=" << a.string_key << "\n";
-			std::cout << "typeid=" << typeid(a).name() << "\n";
-			std::cout << "unregistered=" << a.unregistered << "\n";
-			std::cout << "original_tokens=" << a.original_tokens.size() << "\n";
+		// debug dump everything found
+		for (const auto& o : parsed.options) {
+			// 'o' should be a basic_option
+			std::cout << "key=" << o.string_key << "\n";
+			std::cout << "values len=" << o.value.size() << "\n";
+			std::cout << "typeid=" << typeid(o).name() << "\n";
+			std::cout << "unregistered=" << o.unregistered << "\n";
+			std::cout << "original_tokens=" << o.original_tokens.size() << "\n";
 //			std::cout << "ptr=" << &a << "\n\n";
 		}
 
@@ -184,17 +189,23 @@ std::optional<struct Args> parse_args(int argc, const char * const argv[])
 		return {};
 	}
 
-	std::cout << "final: verbose=" << varmap.count("verbose") << "\n";
-//	if (varmap.count("verbose")) {
-//		std::cout << "varmap verbose=" << varmap["verbose"].as<int>() << "\n";
-//	}
-
 	try {
 		opt::notify(varmap);    
 	}
 	catch (const opt::error &err) {
 		std::cerr << err.what() << "\n";
 		return {};
+	}
+
+	// peek at the varmap which should be a descendent of std::map
+	std::cout << "varmap size=" << varmap.size() << "\n";
+	for (const auto& v: varmap) {
+		std::cout << "typeid=" << typeid(v).name() << "\n";
+		auto [a,b] = v;
+		std::cout << "typeid=" << typeid(a).name() << "\n";
+		std::cout << "typeid=" << typeid(b).name() << "\n";
+		std::cout << "a=" << a << "\n";
+//		std::cout << "b=" << b.string_key << "\n";
 	}
 
 	// convert the opt::variables_map to my struct Opts
@@ -210,12 +221,22 @@ std::optional<struct Args> parse_args(int argc, const char * const argv[])
 		opts.sort_by = varmap["sort"].as<std::string>();
 	}
 
+	std::cout << "final: verbose=" << varmap.count("verbose") << "\n";
+	if (varmap.count("verbose")) {
+		std::cout << "varmap verbose=" << varmap["verbose"].as<int>() << "\n";
+		opts.verbose = varmap["verbose"].as<int>();
+	}
+
+	// for some reason, without the long option, the short option is stored
+	// with the dash
+	auto use_netrc = varmap["-n"];
+	std::cout << "use_netrc count=" << varmap.count("-n") 
+		<< " empty=" << use_netrc.empty() 
+		<< " defaulted=" << use_netrc.defaulted() << "\n";
+	opts.use_netrc = varmap.count("-n") > 0;
+
 	std::cout << opts << "\n";
 
-	auto use_netrc = varmap["n"];
-	std::cout << "use_netrc empty=" << use_netrc.empty() << " defaulted=" << use_netrc.defaulted() << "\n";
-
-//	opts.verbose = verbose_count;
 	return opts;
 }
 

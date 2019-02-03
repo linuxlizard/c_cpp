@@ -15,7 +15,7 @@ public:
 	bool use_netrc;
 
 	friend std::ostream& operator<<(std::ostream& stream, const struct Args& args) { 
-		stream << "target=" << args.target;
+		stream << "target=" << args.target << " netrc=" << args.use_netrc;
 		return stream; 
 	};
 };
