@@ -58,4 +58,35 @@ BOOST_AUTO_TEST_CASE(test_simple)
 
 	BOOST_TEST_CHECKPOINT("expect opts.verbose == " << 42);
 	BOOST_REQUIRE(opts.verbose == 42);
+
+	std::cout << "use_netrc=" << opts.use_netrc << "\n";
+	BOOST_REQUIRE(opts.use_netrc);
+}
+
+BOOST_AUTO_TEST_CASE(test_minimal) 
+{
+	const char* const argv[] = {
+		"test_opts",
+		"-t", "http://192.168.0.1",
+	};
+
+	BOOST_TEST_CHECKPOINT("parse_args");
+	auto parsed = parse_args(ARRAY_SIZE(argv), argv);
+
+	BOOST_TEST_CHECKPOINT("verify parsed");
+	BOOST_REQUIRE(parsed);
+	auto const opts = parsed.value();
+
+	BOOST_TEST_CHECKPOINT("check target");
+	BOOST_REQUIRE(!opts.target.empty());
+	BOOST_REQUIRE(opts.target == "http://192.168.0.1");
+
+	BOOST_TEST_CHECKPOINT("check sort_by");
+	BOOST_REQUIRE(opts.sort_by.empty());
+
+	BOOST_TEST_CHECKPOINT("expect opts.verbose == 0");
+	BOOST_REQUIRE(opts.verbose == 0);
+
+	std::cout << "use_netrc=" << opts.use_netrc << "\n";
+	BOOST_REQUIRE(!opts.use_netrc);
 }
