@@ -22,6 +22,7 @@
 #include <boost/algorithm/string/join.hpp>
 
 #include "netrc.hpp"
+#include "opts.hpp"
 
 using namespace utility;                    // Common utilities like string conversions
 using namespace web;                        // Common features like URIs.
@@ -66,7 +67,7 @@ bool parse_uri(const std::string& uri)
 	return true;
 }
 
-bool parse_args(int argc, char *argv[], struct args& args)
+bool old_parse_args(int argc, char *argv[], struct args& args)
 {
 	// https://stackoverflow.com/questions/tagged/boost-program-options
 
@@ -151,14 +152,21 @@ void check_netrc(std::string host, std::string& username, std::string& password)
 
 int main(int argc, char* argv[])
 {
-	struct args args;
+//	struct args args;
 
-	if (!parse_args(argc, argv, args) ) {
+	std::optional<struct Args> parsed = parse_args(argc, argv);
+	if (!parsed) {
 		return EXIT_FAILURE;
 	}
 
+	auto const args = parsed.value();
+
+//	if (!parse_args(argc, argv, args) ) {
+//		return EXIT_FAILURE;
+//	}
+
 	std::cout << "target=" << args.target << "\n";
-	std::cout << "debug=" << args.debug << "\n";
+//	std::cout << "debug=" << args.debug << "\n";
 
 	// some defaults
 	std::string scheme = U("https");
@@ -223,14 +231,14 @@ int main(int argc, char* argv[])
 
 	credentials cred{username, password};
 //	credentials cred(U("admin"), U("00000000"));
-	http_client_config config;
-	config.set_credentials(cred);
+	http_client_config http_config;
+	http_config.set_credentials(cred);
 
 	uri_builder uri;
 	uri.set_scheme(scheme);
 	uri.set_host(host);
 	uri.set_port(http_port);
-	http_client client(uri.to_uri(), config);
+	http_client client(uri.to_uri(), http_config);
 //	http_client client(U("http://localhost:10000/"), config);
 //	http_client client(U("http://admin:00000000@localhost:10000/"));
 
@@ -335,12 +343,13 @@ int main(int argc, char* argv[])
 		std::cout << "type=" << type_ << " plugged=" << plugged << " rssi=" << rssi.value_or(no_value) << "\n";
 	}
 #endif
+	utility::string_t key;
 
 	std::cout << "router is " << connection_state << "\n";
 	boost::format formatter("%|30s| %|10s|    %|-10s| %|-10s|    %|-24s|\n");
 	std::cout << "                          NAME       TYPE    PLUGGED    REASON        SUMMARY\n";
 	for (auto &ptr : status_obj ) {
-		utility::string_t key = ptr.first;
+		key = ptr.first;
 		value = ptr.second;
 
 		json::value config = value.at(U("config"));
@@ -357,6 +366,7 @@ int main(int argc, char* argv[])
 		double uptime_n {0};
 		if (uptime.is_number()) {
 			uptime_n = uptime.as_double();
+			std::cout << "uptime_n=" << uptime_n << "\n";
 		}
 
 //		object_introspect(uptime.as_object());
@@ -366,7 +376,7 @@ int main(int argc, char* argv[])
 	}
 
 	for (auto &ptr : status_obj ) {
-		utility::string_t key = ptr.first;
+		key = ptr.first;
 		value = ptr.second;
 
 //		json::value config = value.at(U("config"));
@@ -380,19 +390,19 @@ int main(int argc, char* argv[])
 			// name state exception timeout 
 			json::object conn_obj = conn.as_object();
 
-			for (auto& fields : conn_obj) {
-				utility::string_t key = fields.first;
-				value = fields.second;
+//			for (auto& fields : conn_obj) {
+//				utility::string_t key = fields.first;
+//				value = fields.second;
 //				std::cout << key << "=" << value << "\n";
-			}
+//			}
 
 			// can I do something like python's string.join with an iterators cross the connectors' keys?
 			// starting simple, make an array, then directly join
 			std::vector<std::string> connector_keys;
 			for (auto& fields : conn_obj) {
-				utility::string_t key = fields.first;
+				utility::string_t conn_key = fields.first;
 				value = fields.second;
-				connector_keys.push_back(key);
+				connector_keys.push_back(conn_key);
 			}
 			std::string all_keys = boost::algorithm::join(connector_keys, ",");
 //			std::cout << "all_keys=" << all_keys << "\n";
