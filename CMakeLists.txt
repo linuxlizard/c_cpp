@@ -49,7 +49,7 @@ add_test(
 	COMMAND $<TARGET_FILE:test_netrc>
 	)
 
-add_executable(wanstat $<TARGET_OBJECTS:netrc> wanstat.cc)
+add_executable(wanstat $<TARGET_OBJECTS:netrc> $<TARGET_OBJECTS:opts> wanstat.cc)
 target_compile_features(wanstat PUBLIC cxx_std_17)
 target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
 target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES} ${FSLIB})
