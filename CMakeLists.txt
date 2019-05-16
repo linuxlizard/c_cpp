@@ -17,6 +17,11 @@ add_subdirectory(fmt EXCLUDE_FROM_ALL)
 # https://github.com/Microsoft/cpprestsdk/issues/686
 set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
 
+# Fedora
+# dnf install cmake cpprest-devel boost-devel # TODO
+# dnf install make gcc gcc-c++ kernel-devel git libmicrohttpd-devel pkg-config zlib-devel libnl3-devel flex bison
+# dnf install qt-devel openssl-devel
+
 find_package(cpprestsdk REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem unit_test_framework)
 
@@ -82,6 +87,8 @@ add_test(
 	COMMAND $<TARGET_FILE:test_opts>
 	)
 
+# libfmt 
+# http://fmtlib.net/latest/index.html
 add_executable(format format.cc)
 target_compile_features(format PUBLIC cxx_std_17)
 target_link_libraries(format PRIVATE ${Boost_LIBRARIES})
@@ -90,4 +97,10 @@ target_link_libraries(format PRIVATE fmt-header-only)
 add_executable(sort sort.cc)
 target_compile_features(sort PUBLIC cxx_std_17)
 target_link_libraries(sort PRIVATE ${Boost_LIBRARIES})
+
+# jsoncpp jsoncpp-devel
+# https://github.com/open-source-parsers/jsoncpp
+add_executable(json json.cc)
+target_compile_features(json PUBLIC cxx_std_17)
+target_link_libraries(json PRIVATE jsoncpp)
 
