@@ -34,7 +34,7 @@ std::pair<std::string, std::string> verbose_parser(const std::string& s)
 	return std::make_pair(std::string(), std::string());
 }
 
-std::optional<struct Args> parse_args(int argc, const char * const argv[])
+std::optional<Args> parse_args(int argc, const char * const argv[])
 {
 	int verbose;
 
@@ -209,7 +209,7 @@ std::optional<struct Args> parse_args(int argc, const char * const argv[])
 	}
 
 	// convert the opt::variables_map to my struct Opts
-	struct Args opts {};
+	Args opts {};
 	std::cout << opts << "\n";
 
 	if (varmap.count("target")) {

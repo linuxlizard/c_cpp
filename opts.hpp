@@ -20,5 +20,5 @@ public:
 	};
 };
 
-std::optional<struct Args> parse_args(int argc, const char * const argv[]);
+std::optional<Args> parse_args(int argc, const char * const argv[]);
 
