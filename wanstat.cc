@@ -346,8 +346,8 @@ int main(int argc, char* argv[])
 	utility::string_t key;
 
 	std::cout << "router is " << connection_state << "\n";
-	boost::format formatter("%|30s| %|10s|    %|-10s| %|-10s|    %|-24s|\n");
-	std::cout << "                          NAME       TYPE    PLUGGED    REASON        SUMMARY\n";
+	boost::format formatter("%|30s| %|10s|  %|8.0f|  %|-10s| %|-10s|    %|-24s|\n");
+	std::cout << "                          NAME       TYPE    UPTIME  PLUGGED    REASON        SUMMARY\n";
 	for (auto &ptr : status_obj ) {
 		key = ptr.first;
 		value = ptr.second;
@@ -362,17 +362,14 @@ int main(int argc, char* argv[])
 		std::string reason = status.at(U("reason")).as_string();
 		std::string summary = status.at(U("summary")).as_string();
 		json::value uptime = status.at(U("uptime"));
-		std::cout << "uptime=" << uptime << " type=" << uptime.type() << "\n";
+//		std::cout << "uptime=" << uptime << " type=" << uptime.type() << "\n";
 		double uptime_n {0};
 		if (uptime.is_number()) {
 			uptime_n = uptime.as_double();
-			std::cout << "uptime_n=" << uptime_n << "\n";
+//			std::cout << "uptime_n=" << uptime_n << "\n";
 		}
 
-//		object_introspect(uptime.as_object());
-
-		std::cout << formatter % key % type_ % (plugged?"true":"false") % reason % summary;
-//		std::cout << boost::format("%|30s| %|10s|    %|-10s| %|-10s|    %|-24s|\n") % key % type_ % (plugged?"true":"false") % reason % summary;
+		std::cout << formatter % key % type_ % uptime_n % (plugged?"true":"false") % reason % summary;
 	}
 
 	for (auto &ptr : status_obj ) {
