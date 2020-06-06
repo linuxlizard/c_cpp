@@ -13,13 +13,14 @@
  */
 #include <cpprest/http_client.h>
 #include <cpprest/filestream.h>
-#include <thread>
+//#include <thread>
 #include <chrono>
 #include <boost/program_options.hpp>
 #include <cstdlib>
-#include <regex>
+//#include <regex>
 #include <boost/format.hpp>
-#include <boost/algorithm/string/join.hpp>
+//#include <boost/algorithm/string/join.hpp>
+#include <optional>
 
 #include "netrc.hpp"
 #include "opts.hpp"
@@ -39,6 +40,7 @@ struct args {
 	int debug;
 };
 
+#if 0
 bool parse_uri(const std::string& uri)
 {
 	/* davep 20180818 ; playing with RFC3986 */
@@ -66,7 +68,9 @@ bool parse_uri(const std::string& uri)
 #endif
 	return true;
 }
+#endif
 
+#if 0
 bool old_parse_args(int argc, char *argv[], struct args& args)
 {
 	// https://stackoverflow.com/questions/tagged/boost-program-options
@@ -108,6 +112,7 @@ bool old_parse_args(int argc, char *argv[], struct args& args)
 	/* final step is verifying the validity of the URL */
 	return parse_uri(args.target);
 }
+#endif
 
 void object_introspect(json::object& jobj)
 {
@@ -149,6 +154,35 @@ void check_netrc(std::string host, std::string& username, std::string& password)
 		host = "default";
 	}
 }
+
+//const std::string& get_ssid(const json::value& device)
+std::optional<std::string> get_ssid(const json::value& device)
+{
+	try {
+		const json::value& diag = device.at(U("diagnostics"));
+		return std::make_optional(diag.at(U("SSID")).as_string());
+	}
+	catch (json::json_exception& err ) {
+		return std::nullopt; 
+	}
+	return std::nullopt; 
+}
+
+bool is_wwan(const json::value& device) 
+{
+	// is this device (from /status/wan/devices) a wifi-as-wan device?
+	try {
+		const json::value& info = device.at(U("info"));
+		const std::string& type_ = info.at(U("type")).as_string();
+//		std::cout << "uid=" << info.at(U("uid")) << " " << (type_ == "wwan") << "\n";
+		return type_ == "wwan";
+	} 
+	catch (json::json_exception& err ) {
+		return false;
+	}
+	return false;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -313,36 +347,6 @@ int main(int argc, char* argv[])
 	json::value no_value(U("n/a"));
 
 	json::object status_obj = data.as_object();
-#if 0
-	// parse the response
-	for (auto ptr = status_obj.begin() ; ptr != status_obj.end() ; ptr++) {
-		utility::string_t key = ptr->first;
-		value = ptr->second;
-		std::cout << "key=" << key << std::endl;
-		json::value config = value.at(U("config"));
-		json::value status = value.at(U("status"));
-		json::value info = value.at(U("info"));
-		json::array connectors = value.at(U("connectors")).as_array();
-		for (auto conn = connectors.begin() ; conn != connectors.end() ; conn++) {
-			std::cout << "conn=" << *conn << std::endl;
-		}
-
-		std::optional<json::value> rssi;
-		try {
-			rssi = info.at(U("rssi"));
-		} 
-		catch ( json::json_exception& err ) {
-			// pass
-		}
-
-		json::value type_ = info.at(U("type"));
-		json::value plugged = status.at(U("plugged"));
-
-//		std::cout << rssi.value_or(no_value) << "\n";
-//		std::cout << "type=" << type_ << " plugged=" << plugged << "\n";
-		std::cout << "type=" << type_ << " plugged=" << plugged << " rssi=" << rssi.value_or(no_value) << "\n";
-	}
-#endif
 	utility::string_t key;
 
 	std::cout << "router is " << connection_state << "\n";
@@ -362,11 +366,9 @@ int main(int argc, char* argv[])
 		std::string reason = status.at(U("reason")).as_string();
 		std::string summary = status.at(U("summary")).as_string();
 		json::value uptime = status.at(U("uptime"));
-//		std::cout << "uptime=" << uptime << " type=" << uptime.type() << "\n";
 		double uptime_n {0};
 		if (uptime.is_number()) {
 			uptime_n = uptime.as_double();
-//			std::cout << "uptime_n=" << uptime_n << "\n";
 		}
 
 		std::cout << formatter % key % type_ % uptime_n % (plugged?"true":"false") % reason % summary;
@@ -375,10 +377,6 @@ int main(int argc, char* argv[])
 	for (auto &ptr : status_obj ) {
 		key = ptr.first;
 		value = ptr.second;
-
-//		json::value config = value.at(U("config"));
-//		json::value status = value.at(U("status"));
-//		json::value info = value.at(U("info"));
 
 		json::array connectors = value.at(U("connectors")).as_array();
 		std::cout << "\nconnectors for " << key << "\n";
@@ -401,7 +399,7 @@ int main(int argc, char* argv[])
 				value = fields.second;
 				connector_keys.push_back(conn_key);
 			}
-			std::string all_keys = boost::algorithm::join(connector_keys, ",");
+//			std::string all_keys = boost::algorithm::join(connector_keys, ",");
 //			std::cout << "all_keys=" << all_keys << "\n";
 
 //			std::string all_keys2 = boost::algorithm::join(conn_obj.begin(), ",");
@@ -427,6 +425,81 @@ int main(int argc, char* argv[])
 			std::cout << boost::format("%|30s| %|10s|    %|-10s| %|-10s|\n") % name % state % exception % timeout.value_or(no_value);
 		}
 	}
+
+	// at this point only want to see wifi-as-wan
+#if 0
+	status_obj.erase(
+			std::remove_if(
+				status_obj.begin(), 
+				status_obj.end(), 
+				[](const auto& v){ return is_wwan(v.second);}
+			)
+		);
+#endif
+
+	// dump some wifi-as-wan
+
+	// this is kinda silly; there are likely much better ways to do this
+	// XXX how do I know if I'm copying stuff all over the place!?
+	size_t ssid_max_len {0};
+	std::for_each(status_obj.cbegin(), status_obj.cend(), [&ssid_max_len](const auto& v) { 
+			if (is_wwan(v.second)) {
+				auto ssid = get_ssid(v.second);
+				if (ssid && ssid->size() > ssid_max_len) {
+					ssid_max_len = ssid->size();
+				}
+			}
+			std::cout << "len=" << ssid_max_len << " " << v.first << "\n"; 
+			}
+		);
+
+
+	std::cout << "\nWifi-as-WAN Connections\n"
+		"                            SSID  BSSID              AP-MAC            CHANNEL         STATE       MODE     UPTIME\n";
+//	boost::format wwan_fmt(
+//			boost::format("%%|%|d|s| %%|18s| %%|18s| %%|5d| %%|15s| %%|12s| %%|8.0f|\n") % ssid_max_len);
+	boost::format wwan_fmt("%|32s| %|18s| %|18s| %|5d| %|15s| %|12s| %|8.0f|\n");
+	for (auto &ptr : status_obj ) {
+		key = ptr.first;
+		value = ptr.second;
+
+//		std::cout << "is_wwan=" << is_wwan(value) << "\n";
+
+		std::optional<std::string> haz_ssid = get_ssid(value);
+		if (haz_ssid) {
+//			std::cout << "ssid=" << *haz_ssid << "\n";
+		}
+
+		if (! is_wwan(value)) {
+			continue;
+		}
+
+//		const json::value& info = value.at(U("info"));
+//		const std::string& type_ = info.at(U("type")).as_string();
+//
+//		if (type_ != "wwan") {
+//			continue;
+//		}
+
+		const json::value& status = value.at(U("status"));
+		const json::value& diag = value.at(U("diagnostics"));
+		const utility::string_t& conn_state = status.at(U("connection_state")).as_string();
+
+		const std::string& ssid = diag.at(U("SSID")).as_string();
+		const utility::string_t& bssid = diag.at(U("macaddr")).as_string();
+		const utility::string_t& ap_bssid = diag.at(U("AP_BSSID")).as_string();
+		int channel = diag.at(U("channel")).as_integer();
+		const utility::string_t& mode = diag.at(U("mode")).as_string();
+
+		json::value uptime = status.at(U("uptime"));
+		double uptime_n {0};
+		if (uptime.is_number()) {
+			uptime_n = uptime.as_double();
+		}
+
+		std::cout << wwan_fmt % ssid % bssid % ap_bssid % channel % conn_state % mode % uptime_n;
+	}
+
 
 	// tinkering with boost assert
 	BOOST_ASSERT_MSG(true,"hello, world");
