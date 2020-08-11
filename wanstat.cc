@@ -489,7 +489,8 @@ int main(int argc, char* argv[])
 		const utility::string_t& bssid = diag.at(U("macaddr")).as_string();
 		const utility::string_t& ap_bssid = diag.at(U("AP_BSSID")).as_string();
 		int channel = diag.at(U("channel")).as_integer();
-		const utility::string_t& mode = diag.at(U("mode")).as_string();
+		// some platforms don't provide this field
+		const utility::string_t& mode = diag.has_field(U("mode")) ? diag.at(U("mode")).as_string() : "(N/A)";
 
 		json::value uptime = status.at(U("uptime"));
 		double uptime_n {0};
