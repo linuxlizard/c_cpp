@@ -100,6 +100,11 @@ bool wlansurvey(std::string& target)
 	// read netrc before trying higher priority methods
 	check_netrc(target_uri.host(), username, password);
 
+	const char * p = std::getenv("CP_PASSWORD");
+	if (p) {
+		password.assign(p);
+	}
+
 	credentials cred{username, password};
 	http_client_config config;
 	config.set_credentials(cred);

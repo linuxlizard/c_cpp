@@ -18,9 +18,8 @@ add_subdirectory(fmt EXCLUDE_FROM_ALL)
 set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
 
 # Fedora
-# dnf install cmake cpprest-devel boost-devel # TODO
-# dnf install make gcc gcc-c++ kernel-devel git libmicrohttpd-devel pkg-config zlib-devel libnl3-devel flex bison
-# dnf install qt-devel openssl-devel
+# dnf install make gcc gcc-c++ kernel-devel git libmicrohttpd-devel pkg-config zlib-devel libnl3-devel flex bison openssl-devel
+# dnf install cmake cpprest-devel boost-devel jsoncpp-devel # TODO keep up to date
 
 find_package(cpprestsdk REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem unit_test_framework)
