@@ -9,13 +9,31 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+/* davep 20210616 ; adding auth; adding base64; adding json */
+// https://github.com/ReneNyffenegger/cpp-base64
+// https://github.com/nlohmann/json
+// gcc -g -Wall -o sync_client sync_client.cc -std=c++17 -I../cpp-base64 -I../n-json/include ../cpp-base64/base64-17.o -lstdc++ -lpthread
+
 #include <iostream>
 #include <istream>
 #include <ostream>
 #include <string>
 #include <boost/asio.hpp>
 
+#include "base64.h"
+
+#include <nlohmann/json.hpp>
+
+// for convenience
+ using json = nlohmann::json;
+
 using boost::asio::ip::tcp;
+
+// https://www.boost.org/community/error_handling.html
+struct NoPasswordException : std::runtime_error
+{
+	NoPasswordException() : std::runtime_error("Missing Password") { } 
+};
 
 int main(int argc, char* argv[])
 {
@@ -48,6 +66,19 @@ int main(int argc, char* argv[])
     request_stream << "GET " << argv[2] << " HTTP/1.0\r\n";
     request_stream << "Host: " << argv[1] << "\r\n";
     request_stream << "Accept: */*\r\n";
+
+	/* davep 20210615 ; attempt http auth */
+	const char *pw = getenv("CP_PASSWORD");
+	if (!pw) {
+		throw NoPasswordException();
+	}
+	std::string password = pw;
+	std::string username { "admin" };
+	std::string upw = username + ":" + password;
+	std::string auth = "Basic " + base64_encode(upw);
+	std::cout << "auth=" << auth << "\n";
+	request_stream << "Authorization: " + auth + "\r\n";
+
     request_stream << "Connection: close\r\n\r\n";
 
     // Send the request.
@@ -72,11 +103,6 @@ int main(int argc, char* argv[])
       std::cout << "Invalid response\n";
       return 1;
     }
-    if (status_code != 200)
-    {
-      std::cout << "Response returned with status code " << status_code << "\n";
-      return 1;
-    }
 
     // Read the response headers, which are terminated by a blank line.
     boost::asio::read_until(socket, response, "\r\n\r\n");
@@ -87,15 +113,28 @@ int main(int argc, char* argv[])
       std::cout << header << "\n";
     std::cout << "\n";
 
+	std::string buf;
     // Write whatever content we already have to output.
-    if (response.size() > 0)
-      std::cout << &response;
+//    if (response.size() > 0)
+//      std::cout << &response;
+
+	// read into string
+	response_stream >> buf;
+	std::cout << "buf=" << buf << "\n";
 
     // Read until EOF, writing data to output as we go.
     boost::system::error_code error;
     while (boost::asio::read(socket, response,
-          boost::asio::transfer_at_least(1), error))
-      std::cout << &response;
+          boost::asio::transfer_at_least(1), error)) {
+//      std::cout << &response;
+	}
+
+    if (status_code != 200)
+    {
+      std::cout << "Response returned with status code " << status_code << "\n";
+      return 1;
+    }
+
     if (error != boost::asio::error::eof)
       throw boost::system::system_error(error);
   }
