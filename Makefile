@@ -1,4 +1,4 @@
-all: words
+all: words http_client_sync
 
 bing:
 	g++ -g -Wall -o bing -std=c++14 bing.cc -lstdc++  -lcrypto -lssl -lcpprest -lboost_system
@@ -24,5 +24,14 @@ words:words.cc
 	g++ -O3 -Wall -o words -std=c++17 words.cc -lstdc++ -lpthread -lboost_system -lboost_filesystem -lboost_regex
 #	g++ -g -Wall -o words -std=c++17 words.cc -lstdc++ -lpthread -lboost_system -lboost_filesystem -lboost_regex
 
+http_client_sync: http_client_sync.o n-json.o
+	gcc -g -Wall -o http_client_sync -std=c++17 -lstdc++ -lpthread  ../cpp-base64/base64-17.o $^
+
+http_client_sync.o: http_client_sync.cc n-json.h
+	gcc -g -Wall -o $@ -c $< -I../cpp-base64 -I../n-json/include
+
+n-json.o: n-json.cc n-json.h
+	gcc -g -Wall -o $@ -c $< -I../cpp-base64 -I../n-json/include
+
 clean:
-	$(RM) words evil wanstat
+	$(RM) *.o words evil wanstat http_client_sync

@@ -25,10 +25,27 @@
 #include <iostream>
 #include <string>
 
+/* davep 20210616 ; adding base64 */
+#include "base64.h"
+
+#include "n-json.h"
+
 namespace beast = boost::beast;     // from <boost/beast.hpp>
 namespace http = beast::http;       // from <boost/beast/http.hpp>
 namespace net = boost::asio;        // from <boost/asio.hpp>
 using tcp = net::ip::tcp;           // from <boost/asio/ip/tcp.hpp>
+
+// https://www.boost.org/community/error_handling.html
+struct NoPasswordException : std::runtime_error
+{
+	NoPasswordException() : std::runtime_error("Missing Password") { } 
+};
+
+struct TransactionFailedException : std::runtime_error
+{
+	TransactionFailedException() : std::runtime_error("api call failed") { }
+	TransactionFailedException(const char* errmsg) : std::runtime_error(errmsg) { }
+};
 
 // Performs an HTTP GET and prints the response
 int main(int argc, char** argv)
@@ -68,6 +85,18 @@ int main(int argc, char** argv)
         req.set(http::field::host, host);
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
+	/* davep 20210615 ; attempt http auth */
+	const char *pw = getenv("CP_PASSWORD");
+	if (!pw) {
+		throw NoPasswordException();
+	}
+	std::string password = pw;
+	std::string username { "admin" };
+	std::string upw = username + ":" + password;
+	std::string auth = "Basic " + base64_encode(upw);
+	std::cout << "auth=" << auth << "\n";
+	req.set(http::field::authorization, auth);
+
         // Send the HTTP request to the remote host
         http::write(stream, req);
 
@@ -81,7 +110,32 @@ int main(int argc, char** argv)
         http::read(stream, buffer, res);
 
         // Write the message to standard out
-        std::cout << res << std::endl;
+//        std::cout << res << std::endl;
+		std::cout << "result=" << res.result() << "\n";
+		std::cout << "result_int=" << res.result_int() << "\n";
+		std::cout << "reason=" << res.reason() << "\n";
+//		std::string buf;
+//		std::cout << "body=" << res.body() << "\n";
+
+		std::string s = boost::beast::buffers_to_string(res.body().data());
+		std::cout << "s=" << s << "\n";
+
+//		nlohmann::json j2 = nlohmann::json::parse(res.begin(), res.end());
+
+		nlohmann::json j = parse(s);
+		if (j["success"] != true) {
+			throw TransactionFailedException();
+		}
+		if ( j["data"] == nullptr) {
+			throw TransactionFailedException("No data");
+		}
+
+		std::cout << j["data"].dump() << "\n";
+
+		for (auto const& node : j["data"]["trace"]) {
+			std::cout << node.dump() << "\n";
+		}
+
 
         // Gracefully close the socket
         beast::error_code ec;
