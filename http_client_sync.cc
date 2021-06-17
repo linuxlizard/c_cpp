@@ -28,7 +28,8 @@
 /* davep 20210616 ; adding base64 */
 #include "base64.h"
 
-#include "n-json.h"
+//#include "n-json.h"
+#include <nlohmann/json.hpp>
 
 namespace beast = boost::beast;     // from <boost/beast.hpp>
 namespace http = beast::http;       // from <boost/beast/http.hpp>
@@ -94,7 +95,7 @@ int main(int argc, char** argv)
 	std::string username { "admin" };
 	std::string upw = username + ":" + password;
 	std::string auth = "Basic " + base64_encode(upw);
-	std::cout << "auth=" << auth << "\n";
+//	std::cout << "auth=" << auth << "\n";
 	req.set(http::field::authorization, auth);
 
         // Send the HTTP request to the remote host
@@ -103,12 +104,16 @@ int main(int argc, char** argv)
         // This buffer is used for reading and must be persisted
         beast::flat_buffer buffer;
 
+		// davep 20210617 ; change body to std::string to make getting data for
+		// json parsing easier
         // Declare a container to hold the response
-        http::response<http::dynamic_body> res;
+        http::response<http::string_body> res;
+//        http::response<http::dynamic_body> res;
 
         // Receive the HTTP response
         http::read(stream, buffer, res);
 
+#if 0
         // Write the message to standard out
 //        std::cout << res << std::endl;
 		std::cout << "result=" << res.result() << "\n";
@@ -116,13 +121,15 @@ int main(int argc, char** argv)
 		std::cout << "reason=" << res.reason() << "\n";
 //		std::string buf;
 //		std::cout << "body=" << res.body() << "\n";
+#endif
 
-		std::string s = boost::beast::buffers_to_string(res.body().data());
-		std::cout << "s=" << s << "\n";
+//		std::string s = boost::beast::buffers_to_string(res.body().data());
+		std::string s = res.body().data();
+//		std::cout << "s=" << s << "\n";
 
 //		nlohmann::json j2 = nlohmann::json::parse(res.begin(), res.end());
 
-		nlohmann::json j = parse(s);
+		nlohmann::json j = nlohmann::json::parse(s);
 		if (j["success"] != true) {
 			throw TransactionFailedException();
 		}
@@ -130,10 +137,11 @@ int main(int argc, char** argv)
 			throw TransactionFailedException("No data");
 		}
 
-		std::cout << j["data"].dump() << "\n";
+//		std::cout << j["data"].dump() << "\n";
 
 		for (auto const& node : j["data"]["trace"]) {
 			std::cout << node.dump() << "\n";
+//			std::cout << node[1] << "\n";
 		}
 
 
