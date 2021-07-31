@@ -2,13 +2,17 @@
 # cmake -DCMAKE_BUILD_TYPE=Debug ..
 # cmake -DCMAKE_BUILD_TYPE=Release ..
 
+# hint 20210716
+# cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=~/src/vcpkg/scripts/buildsystems/vcpkg.cmake
+
 cmake_minimum_required(VERSION 3.7)
 project(wanstat)
 
 enable_testing()
 
 # http://fmtlib.net/latest/usage.html
-add_subdirectory(fmt EXCLUDE_FROM_ALL)
+#add_subdirectory(fmt EXCLUDE_FROM_ALL)
+find_package(fmt CONFIG REQUIRED)
 
 # debian (work in progress):
 # apt install build-essential libcpprest-dev libboost-program-options-dev libboost-filesystem-dev
@@ -22,7 +26,13 @@ set(cpprestsdk_DIR /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/)
 # dnf install cmake cpprest-devel boost-devel jsoncpp-devel # TODO keep up to date
 
 find_package(cpprestsdk REQUIRED)
+#find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem )
 find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem unit_test_framework)
+
+message(STATUS "Boost_FOUND=${BOOST_FOUND}")
+message(STATUS "Boost_LIBRARIES=${Boost_LIBRARIES}")
+message(STATUS "Boost_INCLUDE_DIRS=${Boost_INCLUDE_DIRS}")
+message(STATUS "Boost_VERSION_STRING=${Boost_VERSION_STRING}")
 
 #https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
 #-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic
@@ -38,12 +48,14 @@ add_library(netrc OBJECT netrc.cc)
 target_compile_features(netrc PUBLIC cxx_std_17)
 add_executable(test_netrc $<TARGET_OBJECTS:netrc> test_netrc.cc)
 target_compile_features(test_netrc PUBLIC cxx_std_17)
+target_include_directories(netrc PUBLIC ${Boost_INCLUDE_DIRS})
+target_include_directories(test_netrc PUBLIC ${Boost_INCLUDE_DIRS})
 if (${CMAKE_COMPILER_IS_GNUCXX})
 	set(FSLIB "stdc++fs")
 else()
 	set(FSLIB "c++fs")
 endif()
-message(STATUS "Boost_Libraries=${Boost_LIBRARIES}")
+
 target_link_libraries(test_netrc PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 target_compile_options(test_netrc PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 # netrc is using filesystem library. An opportunity to learn more CMake!
@@ -61,6 +73,8 @@ target_compile_features(wanstat PUBLIC cxx_std_17)
 target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
 target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 target_compile_options(wanstat PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+target_include_directories(wanstat PUBLIC ${Boost_INCLUDE_DIRS})
+target_link_libraries(wanstat PRIVATE fmt::fmt)
 
 add_executable(wlansurvey $<TARGET_OBJECTS:netrc> wlansurvey.cc)
 target_compile_features(wlansurvey PUBLIC cxx_std_17)
@@ -69,6 +83,7 @@ target_link_libraries(wlansurvey PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 #https://cmake.org/cmake/help/v3.13/command/target_compile_options.html#command:target_compile_options
 #https://stackoverflow.com/questions/23995019/what-is-the-modern-method-for-setting-general-compile-flags-in-cmake/23995391#23995391
 target_compile_options(wlansurvey PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+target_include_directories(wlansurvey PUBLIC ${Boost_INCLUDE_DIRS})
 
 
 add_executable(uri uri.cc)
@@ -77,9 +92,11 @@ target_link_libraries(uri PRIVATE ${Boost_LIBRARIES})
 
 add_library(opts OBJECT opts.cc)
 target_compile_features(opts PUBLIC cxx_std_17)
+target_include_directories(opts PUBLIC ${Boost_INCLUDE_DIRS})
 add_executable(test_opts $<TARGET_OBJECTS:opts> test_opts.cc)
 target_compile_features(test_opts PUBLIC cxx_std_17)
 target_link_libraries(test_opts PRIVATE ${Boost_LIBRARIES})
+target_include_directories(test_opts PUBLIC ${Boost_INCLUDE_DIRS})
 target_compile_options(test_opts PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 add_test(
 	NAME test_opts
@@ -88,10 +105,11 @@ add_test(
 
 # libfmt 
 # http://fmtlib.net/latest/index.html
+
 add_executable(format format.cc)
 target_compile_features(format PUBLIC cxx_std_17)
 target_link_libraries(format PRIVATE ${Boost_LIBRARIES})
-target_link_libraries(format PRIVATE fmt-header-only)
+target_link_libraries(format PRIVATE fmt::fmt)
 
 add_executable(sort sort.cc)
 target_compile_features(sort PUBLIC cxx_std_17)
