@@ -10,6 +10,10 @@
  *
  * davep 20180705 ; Tired of Python's problems. Let's try my getting CP router WAN status with C++
  *
+ * "cpprestsdk is in maintenance mode and we do not recommend its use in new
+ * projects. We will continue to fix critical bugs and address security issues."
+ * davep 20210730 ; well crap
+ * 
  */
 #include <cpprest/http_client.h>
 #include <cpprest/filestream.h>
@@ -18,9 +22,11 @@
 #include <boost/program_options.hpp>
 #include <cstdlib>
 //#include <regex>
-#include <boost/format.hpp>
 //#include <boost/algorithm/string/join.hpp>
 #include <optional>
+
+// http://fmtlib.net/latest/api.html#format
+#include <fmt/format.h>
 
 #include "netrc.hpp"
 #include "opts.hpp"
@@ -182,6 +188,53 @@ bool is_wwan(const json::value& device)
 	}
 	return false;
 }
+
+// http://fmtlib.net/latest/api.html#format
+// "Formatting user-defined types"
+template <> 
+struct fmt::formatter<json::value> 
+{
+	char presentation = 'J';
+
+//	std::string status_fmt { "{0:30s} {1:10s}    {2:10s} {3:10s}    {4:24s}" };
+
+	// Parses format specifications of the form ['f' | 'e'].
+	constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+		// [ctx.begin(), ctx.end()) is a character range that contains a part of
+		// the format string starting from the format specifications to be parsed,
+		// e.g. in
+		//
+		//   fmt::format("{:f} - point of interest", point{1, 2});
+		//
+		// the range will contain "f} - point of interest". The formatter should
+		// parse specifiers until '}' or the end of the range. In this example
+		// the formatter should parse the 'f' specifier and return an iterator
+		// pointing to '}'.
+
+		// Parse the presentation format and store it in the formatter:
+		auto it = ctx.begin(), end = ctx.end();
+		if (it != end && (*it == 'J')) presentation = *it++;
+//		if (it != end && (*it == 'f' || *it == 'e')) presentation = *it++;
+
+		// Check if reached the end of the range:
+		if (it != end && *it != '}')
+			throw fmt::format_error("invalid format womp womp");
+
+		// Return an iterator past the end of the parsed range:
+		return it;
+	}
+
+	// Formats the point p using the parsed format specification (presentation)
+	// stored in this formatter.
+	template <typename FormatContext>
+	auto format(const json::value& p, FormatContext& ctx) -> decltype(ctx.out()) {
+		// ctx.out() is an output iterator to write to.
+		return fmt::format_to(
+				ctx.out(),
+				"{}", p.as_string()
+				);
+	}
+};
 
 
 int main(int argc, char* argv[])
@@ -350,7 +403,7 @@ int main(int argc, char* argv[])
 	utility::string_t key;
 
 	std::cout << "router is " << connection_state << "\n";
-	boost::format formatter("%|30s| %|10s|  %|8.0f|  %|-10s| %|-10s|    %|-24s|\n");
+	std::string formatter("{0:30s} {1:10s}  {2:8.0f}  {3:10s} {4:10s}    {5:24s}\n");
 	std::cout << "                          NAME       TYPE    UPTIME  PLUGGED    REASON        SUMMARY\n";
 	for (auto &ptr : status_obj ) {
 		key = ptr.first;
@@ -371,7 +424,7 @@ int main(int argc, char* argv[])
 			uptime_n = uptime.as_double();
 		}
 
-		std::cout << formatter % key % type_ % uptime_n % (plugged?"true":"false") % reason % summary;
+		fmt::print(formatter, key, type_, uptime_n, (plugged?"true":"false"), reason, summary);
 	}
 
 	for (auto &ptr : status_obj ) {
@@ -408,6 +461,9 @@ int main(int argc, char* argv[])
 			std::string name = conn_obj.at(U("name")).as_string();
 			json::value state = conn_obj.at(U("state"));
 			json::value exception = conn_obj.at(U("exception"));
+			std::clog << "printy\n";
+			std::clog << "exception=" << exception.as_string() << "\n";
+			std::clog << "printy2\n";
 			// timeout may or may not exist
 			std::optional<json::value> timeout;
 			try {
@@ -422,7 +478,14 @@ int main(int argc, char* argv[])
 //			std::cout << "state=" << state << "\n";
 //			std::cout << "exception=" << exception << "\n";
 //			std::cout << timeout << "\n";
-			std::cout << boost::format("%|30s| %|10s|    %|-10s| %|-10s|\n") % name % state % exception % timeout.value_or(no_value);
+
+#if 1
+			std::cout << fmt::format("{:J}\n", state);
+			std::cout << fmt::format("{0:30s} {1:J}    {2:J} {3:J}\n", 
+							name, state, exception, no_value);
+//							name, state, exception, timeout.value_or(no_value));
+#endif
+			std::clog << "log success\n";
 		}
 	}
 
@@ -456,9 +519,9 @@ int main(int argc, char* argv[])
 
 	std::cout << "\nWifi-as-WAN Connections\n"
 		"                            SSID  BSSID              AP-MAC            CHANNEL         STATE       MODE     UPTIME\n";
-//	boost::format wwan_fmt(
-//			boost::format("%%|%|d|s| %%|18s| %%|18s| %%|5d| %%|15s| %%|12s| %%|8.0f|\n") % ssid_max_len);
-	boost::format wwan_fmt("%|32s| %|18s| %|18s| %|5d| %|15s| %|12s| %|8.0f|\n");
+//	fmt::format wwan_fmt(
+//			fmt::format("%%|%|d|s| %%|18s| %%|18s| %%|5d| %%|15s| %%|12s| %%|8.0f|\n") % ssid_max_len);
+	std::string wwan_fmt("{0:32s} {1:18s} {2:18s} {3:5d} {4:15s} {5:12s} {6:8.0f}\n");
 	for (auto &ptr : status_obj ) {
 		key = ptr.first;
 		value = ptr.second;
@@ -498,7 +561,7 @@ int main(int argc, char* argv[])
 			uptime_n = uptime.as_double();
 		}
 
-		std::cout << wwan_fmt % ssid % bssid % ap_bssid % channel % conn_state % mode % uptime_n;
+		fmt::print(wwan_fmt, ssid, bssid, ap_bssid, channel, conn_state, mode, uptime_n);
 	}
 
 
