@@ -26,7 +26,11 @@
 #include <string>
 
 /* davep 20210616 ; adding base64 */
-#include "base64.h"
+//#include "base64.h"
+
+/* davep 20210730 ; new base64 library via vcpkg */
+// https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp/
+#include "cpp-base64/base64.h"
 
 //#include "n-json.h"
 #include <nlohmann/json.hpp>
@@ -139,7 +143,7 @@ int main(int argc, char** argv)
 
 //		std::cout << j["data"].dump() << "\n";
 
-		for (auto const& node : j["data"]["trace"]) {
+		for (auto const& node : j["data"]) {
 			std::cout << node.dump() << "\n";
 //			std::cout << node[1] << "\n";
 		}
