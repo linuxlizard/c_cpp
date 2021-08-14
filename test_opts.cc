@@ -6,7 +6,13 @@
 #include <boost/algorithm/string.hpp>
 
 #define BOOST_TEST_MODULE test_opts
-#define BOOST_TEST_DYN_LINK
+
+// on Linux, I needed BOOST_TEST_DYN_LINK
+// but using vcpkg I was getting the following link error:
+//  undefined reference to `boost::unit_test::unit_test_main(bool (*)(), int, char**)'
+// so I disabled BOOST_TEST_DYN_LINK
+//#define BOOST_TEST_DYN_LINK
+
 #include <boost/test/unit_test.hpp>
 
 #include "opts.hpp"

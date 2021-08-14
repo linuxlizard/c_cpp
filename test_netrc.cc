@@ -7,7 +7,8 @@
 #include <boost/algorithm/string.hpp>
 
 #define BOOST_TEST_MODULE test_netrc
-#define BOOST_TEST_DYN_LINK
+// see test_opts.cc for more info on BOOST_TEST_DYN_LINK
+//#define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 
 #include "netrc.hpp"

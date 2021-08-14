@@ -2,7 +2,9 @@
 #include <iostream>
 #include <cstdlib>
 
-#include <boost/format.hpp>
+// http://fmtlib.net/latest/api.html#format
+#include <fmt/format.h>
+
 #include <cpprest/http_client.h>
 
 #include "netrc.hpp"
@@ -192,7 +194,8 @@ bool wlansurvey(std::string& target)
 			int rssi = network.at(U("rssi")).as_integer();
 			utility::string_t seen = network.at(U("seen")).as_string();
 
-			std::cout << boost::format("%|30s|    %|10s| %|5s| %|5s| %|5s|   %|-20s|\n") % ssid % bssid % rssi % channel % frequency % seen;
+			fmt::print("{0:30s}    {1:10s} {2:5s| {3:5s} {4:5s}   {5:20s}\n", 
+					ssid, bssid, rssi, channel, frequency, seen);
 		}
 	}
 

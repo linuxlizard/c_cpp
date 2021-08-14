@@ -4,8 +4,10 @@
 #include <tuple>
 #include <algorithm>
 //#include <execution>
-#include <boost/format.hpp>
 #include <ctime>
+
+// http://fmtlib.net/latest/api.html#format
+#include <fmt/format.h>
 
 using survey = std::tuple<std::string, std::string, int, int, int, std::string>;
 
@@ -146,18 +148,19 @@ std::vector<survey> data {
 	std::make_tuple("AER1600-686-5g", "00:30:44:28:a6:88",-79, 157, 5785, "Thu Jan  3 15:12:16 2019"),
 	std::make_tuple("CP-CORP", "24:f2:7f:a3:74:70",-70, 36, 5180, "Thu Jan  3 15:12:16 2019"),
 	std::make_tuple("MV-radio2-crit", "00:30:44:2d:36:0a",-70, 36, 5180, "Thu Jan  3 15:12:16 2019"),
-	std::make_tuple("MV-radio2-crit", "00:30:44:2d:36:0a",-70, 36, 5180, "hi dave")
+	// this should throw a std::invalid_argument
+//	std::make_tuple("MV-radio2-crit", "00:30:44:2d:36:0a",-70, 36, 5180, "hi dave")
 };
 
 static void print_data(const char *title)
 {
-	auto fmt = boost::format("%|30s|    %|10s| %|5s| %|5s| %|5s|   %|-20s|\n");
+	std::string fmt = fmt::format("{0:30s}    {1:10s} {2:5s} {3:5s} {4:5s}   {5:20s}\n");
 	std::cout << "sorted by " << title << "\n";
 	std::for_each(data.begin(), data.end(), [&fmt](survey a) {
 		std::string ssid, bssid, seen;
 		int rssi, channel, frequency;
 		std::tie(ssid, bssid, rssi, channel, frequency, seen) = a;
-		std::cout <<  fmt % ssid % bssid % rssi % channel % frequency % seen;
+		fmt::print(fmt, ssid, bssid, rssi, channel, frequency, seen);
 //		std::cout << std::get<0>(a) << "\n";
 	});
 }

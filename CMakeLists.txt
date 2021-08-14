@@ -1,6 +1,7 @@
 # hint: command line invocation
 # cmake -DCMAKE_BUILD_TYPE=Debug ..
 # cmake -DCMAKE_BUILD_TYPE=Release ..
+set(CMAKE_BUILD_TYPE Debug)
 
 # hint 20210716
 # cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=~/src/vcpkg/scripts/buildsystems/vcpkg.cmake
@@ -84,6 +85,7 @@ target_link_libraries(wlansurvey PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 #https://stackoverflow.com/questions/23995019/what-is-the-modern-method-for-setting-general-compile-flags-in-cmake/23995391#23995391
 target_compile_options(wlansurvey PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 target_include_directories(wlansurvey PUBLIC ${Boost_INCLUDE_DIRS})
+target_link_libraries(wlansurvey PRIVATE fmt::fmt)
 
 add_library(uri OBJECT uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)
@@ -95,11 +97,12 @@ target_include_directories(test_uri PUBLIC ${Boost_INCLUDE_DIRS})
 add_library(opts OBJECT opts.cc)
 target_compile_features(opts PUBLIC cxx_std_17)
 target_include_directories(opts PUBLIC ${Boost_INCLUDE_DIRS})
+
 add_executable(test_opts $<TARGET_OBJECTS:opts> test_opts.cc)
-target_compile_features(test_opts PUBLIC cxx_std_17)
-target_link_libraries(test_opts PRIVATE ${Boost_LIBRARIES})
-target_include_directories(test_opts PUBLIC ${Boost_INCLUDE_DIRS})
 target_compile_options(test_opts PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+target_compile_features(test_opts PUBLIC cxx_std_17)
+target_include_directories(test_opts PRIVATE ${Boost_INCLUDE_DIRS})
+target_link_libraries(test_opts PRIVATE ${Boost_LIBRARIES})
 add_test(
 	NAME test_opts
 	COMMAND $<TARGET_FILE:test_opts>
@@ -115,13 +118,15 @@ target_link_libraries(format PRIVATE fmt::fmt)
 
 add_executable(sort sort.cc)
 target_compile_features(sort PUBLIC cxx_std_17)
+target_compile_options(sort PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 target_link_libraries(sort PRIVATE ${Boost_LIBRARIES})
+target_link_libraries(sort PRIVATE fmt::fmt)
 
 # jsoncpp jsoncpp-devel
 # https://github.com/open-source-parsers/jsoncpp
-add_executable(json json.cc)
-target_compile_features(json PUBLIC cxx_std_17)
-target_link_libraries(json PRIVATE jsoncpp)
+#add_executable(json json.cc)
+#target_compile_features(json PUBLIC cxx_std_17)
+#target_link_libraries(json PRIVATE jsoncpp)
 
 # stuff from http_client (boost::beast)
 find_path(CPP_BASE64_INCLUDE_DIRS "cpp-base64/base64.cpp")
