@@ -403,7 +403,7 @@ int main(int argc, char* argv[])
 	utility::string_t key;
 
 	std::cout << "router is " << connection_state << "\n";
-	std::string formatter("{0:30s} {1:10s}  {2:8.0f}  {3:10s} {4:10s}    {5:24s}\n");
+	std::string formatter("{0:>30s} {1:10s}  {2:8.0f}  {3:10s} {4:10s}    {5:24s}\n");
 	std::cout << "                          NAME       TYPE    UPTIME  PLUGGED    REASON        SUMMARY\n";
 	for (auto &ptr : status_obj ) {
 		key = ptr.first;
