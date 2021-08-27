@@ -1,6 +1,7 @@
 /* davep 20181230 ; poke at cradlepoint router wifi survey : work in progress */
 #include <iostream>
 #include <cstdlib>
+#include <optional>
 
 // http://fmtlib.net/latest/api.html#format
 #include <fmt/format.h>
@@ -194,7 +195,7 @@ bool wlansurvey(std::string& target)
 			int rssi = network.at(U("rssi")).as_integer();
 			utility::string_t seen = network.at(U("seen")).as_string();
 
-			fmt::print("{0:30s}    {1:10s} {2:5s| {3:5s} {4:5s}   {5:20s}\n", 
+			fmt::print("{0:36s} {1:10s} {2:3d} {3:4d} {4:5d}   {5:20s}\n", 
 					ssid, bssid, rssi, channel, frequency, seen);
 		}
 	}
