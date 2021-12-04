@@ -128,13 +128,16 @@ target_link_libraries(sort PRIVATE fmt::fmt)
 #target_compile_features(json PUBLIC cxx_std_17)
 #target_link_libraries(json PRIVATE jsoncpp)
 
-# stuff from http_client (boost::beast)
+# stuff for http_client (boost::beast)
+# hint:  
+# 	pushd ~/src && git clone https://github.com/ReneNyffenegger/cpp-base64.git && popd
+# 	CMAKE_PREFIX_PATH=~/src/ cmake ..
 find_path(CPP_BASE64_INCLUDE_DIRS "cpp-base64/base64.cpp")
+message(STATUS "CPP_BASE64_INCLUDE_DIRS=${CPP_BASE64_INCLUDE_DIRS}")
 find_package(nlohmann_json CONFIG REQUIRED)
 
 # davep 20210730 ; convert wanstat to boost::beast
-add_executable(http_client_sync http_client_sync.cc ${CPP_BASE64_INCLUDE_DIRS}/cpp-base64/base64.cpp)
-message(STATUS "CPP_BASE64_INCLUDE_DIRS=${CPP_BASE64_INCLUDE_DIRS}")
+add_executable(http_client_sync $<TARGET_OBJECTS:netrc> http_client_sync.cc ${CPP_BASE64_INCLUDE_DIRS}/cpp-base64/base64.cpp)
 target_include_directories(http_client_sync PRIVATE ${CPP_BASE64_INCLUDE_DIRS})
 target_include_directories(http_client_sync PUBLIC ${Boost_INCLUDE_DIRS})
 target_compile_features(http_client_sync PUBLIC cxx_std_17)
