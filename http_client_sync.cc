@@ -28,6 +28,8 @@
 /* davep 20210616 ; adding base64 */
 //#include "base64.h"
 
+#include "netrc.hpp"
+
 /* davep 20210730 ; new base64 library via vcpkg */
 // https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp/
 #include "cpp-base64/base64.h"
@@ -51,6 +53,37 @@ struct TransactionFailedException : std::runtime_error
 	TransactionFailedException() : std::runtime_error("api call failed") { }
 	TransactionFailedException(const char* errmsg) : std::runtime_error(errmsg) { }
 };
+
+void check_netrc(std::string host, std::string& username, std::string& password)
+{
+	netrc_map netrc;
+
+	try {
+		netrc = netrc_parse_default_file();
+	}
+	catch (file_error& err) {
+		return;
+	}
+
+	while(1) {
+		try {
+			auto [netrc_login, netrc_password, netrc_account] = netrc.at(host);
+			username = std::move(netrc_login);
+			password = std::move(netrc_password);
+			return;
+		}
+		catch (file_error& err) {
+
+		}
+		catch (std::out_of_range & err) {
+			std::clog << "netrc has no entry for " << host << "\n";
+		}
+		if (host == "default") {
+			return;
+		}
+		host = "default";
+	}
+}
 
 // Performs an HTTP GET and prints the response
 int main(int argc, char** argv)
@@ -90,13 +123,22 @@ int main(int argc, char** argv)
         req.set(http::field::host, host);
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
+	std::string username { "admin" };
+	std::string password;
+
+	// read netrc before trying higher priority methods
+	check_netrc(target, username, password);
+
 	/* davep 20210615 ; attempt http auth */
 	const char *pw = getenv("CP_PASSWORD");
-	if (!pw) {
+	if (pw) {
+		password.assign(pw);
+	}
+	if ( password.empty() ) {
 		throw NoPasswordException();
 	}
-	std::string password = pw;
-	std::string username { "admin" };
+//	std::string password = pw;
+//	std::string username { "admin" };
 	std::string upw = username + ":" + password;
 	std::string auth = "Basic " + base64_encode(upw);
 //	std::cout << "auth=" << auth << "\n";
@@ -135,19 +177,23 @@ int main(int argc, char** argv)
 
 		nlohmann::json j = nlohmann::json::parse(s);
 		if (j["success"] != true) {
+			auto err_json = j.dump();
+			std::cout << s << "\n";
+			std::cout << err_json << "\n";
 			throw TransactionFailedException();
 		}
 		if ( j["data"] == nullptr) {
 			throw TransactionFailedException("No data");
 		}
 
-//		std::cout << j["data"].dump() << "\n";
+		std::cout << j.dump() << "\n";
 
+#if 0
 		for (auto const& node : j["data"]) {
 			std::cout << node.dump() << "\n";
 //			std::cout << node[1] << "\n";
 		}
-
+#endif
 
         // Gracefully close the socket
         beast::error_code ec;
