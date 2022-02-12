@@ -16,7 +16,7 @@ enable_testing()
 find_package(fmt CONFIG REQUIRED)
 
 # debian (work in progress):
-# apt install build-essential libcpprest-dev libboost-program-options-dev libboost-filesystem-dev
+# apt install build-essential libcpprest-dev libboost-program-options-dev libboost-filesystem-dev libboost-test-dev libjsoncpp-dev
 #
 # debian's cpprest doesn't install the .cmake
 # https://github.com/Microsoft/cpprestsdk/issues/686
