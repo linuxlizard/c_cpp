@@ -18,12 +18,15 @@
 
 #include "jansson.h"
 
-#include "core.h"
+//#include "core.h"
 #include "iw.h"
 #include "bss.h"
 #include "bss_json.h"
 #include "survey.h"
 #include "oui.h"
+
+#define PTR_FREE(p) do { free(p); (p)=NULL; } while(0)
+#define PTR_ASSIGN(dst,src) do { (dst)=(src); (src)=NULL; } while(0)
 
 // add the OUI to the json encoded BSS
 static void add_oui(ieeeoui::OUI_MA* oui, json_t* j_bss, const struct BSS* bss)
@@ -139,13 +142,13 @@ size_t Survey::size(void)
 	return survey.size();
 }
 
-std::optional<std::reference_wrapper<const std::string>> Survey::get_json_bssid(std::string bssid) 
+const std::string& Survey::get_json_bssid(std::string bssid) 
 {
 	const std::lock_guard<std::mutex> local_lock(lock);
 
 	// check the json cache
 	try {
-		return std::ref(json.at(bssid));
+		return json.at(bssid);
 	}
 	catch (std::out_of_range& err) {
 		// no such entry
@@ -154,8 +157,7 @@ std::optional<std::reference_wrapper<const std::string>> Survey::get_json_bssid(
 	// at this point, we have to create it
 	auto findme = _locked_find(bssid);
 	if (!findme) {
-		// no such BSS
-		return {};
+		throw std::out_of_range { bssid };
 	}
 
 	const struct BSS* bss = findme.value();
@@ -163,7 +165,7 @@ std::optional<std::reference_wrapper<const std::string>> Survey::get_json_bssid(
 	json_t* j_bss;
 	int ret = bss_to_json(bss, &j_bss, 0);
 	if (ret != 0) {
-		return {};
+		throw std::out_of_range { bssid };
 	}
 
 	// add OUI, if possible
@@ -174,7 +176,7 @@ std::optional<std::reference_wrapper<const std::string>> Survey::get_json_bssid(
 	char* s = json_dumps(j_bss, JSON_INDENT(1));
 	if (!s) {
 		json_decref(j_bss);
-		return {};
+		throw std::out_of_range { bssid };
 	}
 
 	// store the json encoded string back to our map
@@ -185,7 +187,7 @@ std::optional<std::reference_wrapper<const std::string>> Survey::get_json_bssid(
 	json_decref(j_bss);
 	PTR_FREE(s);
 
-	return std::ref(json.at(bssid));
+	return json.at(bssid);
 }
 
 std::string Survey::get_json_survey(Decode decode)

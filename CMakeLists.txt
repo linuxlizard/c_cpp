@@ -32,7 +32,7 @@ find_package(cpprestsdk REQUIRED)
 #find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem )
 find_package(Boost REQUIRED COMPONENTS system program_options regex filesystem unit_test_framework)
 
-message(STATUS "Boost_FOUND=${BOOST_FOUND}")
+message(STATUS "Boost_FOUND=${Boost_FOUND}")
 message(STATUS "Boost_LIBRARIES=${Boost_LIBRARIES}")
 message(STATUS "Boost_INCLUDE_DIRS=${Boost_INCLUDE_DIRS}")
 message(STATUS "Boost_VERSION_STRING=${Boost_VERSION_STRING}")
@@ -49,6 +49,7 @@ target_compile_options(my_gps PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 
 add_library(netrc OBJECT netrc.cc)
 target_compile_features(netrc PUBLIC cxx_std_17)
+
 add_executable(test_netrc $<TARGET_OBJECTS:netrc> test_netrc.cc)
 target_compile_features(test_netrc PUBLIC cxx_std_17)
 target_include_directories(netrc PUBLIC ${Boost_INCLUDE_DIRS})
@@ -58,7 +59,6 @@ if (${CMAKE_COMPILER_IS_GNUCXX})
 else()
 	set(FSLIB "c++fs")
 endif()
-
 target_link_libraries(test_netrc PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 target_compile_options(test_netrc PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 # netrc is using filesystem library. An opportunity to learn more CMake!
@@ -71,13 +71,19 @@ add_test(
 	COMMAND $<TARGET_FILE:test_netrc>
 	)
 
-add_executable(wanstat $<TARGET_OBJECTS:netrc> $<TARGET_OBJECTS:opts> wanstat.cc)
-target_compile_features(wanstat PUBLIC cxx_std_17)
-target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
-target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES} ${FSLIB})
-target_compile_options(wanstat PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
-target_include_directories(wanstat PUBLIC ${Boost_INCLUDE_DIRS})
-#target_link_libraries(wanstat PRIVATE fmt::fmt)
+#find_package(fmt)
+#find_library(LIBFMT libfmt.a REQUIRED)
+#add_library(fmt CONFIG REQUIRED)
+#message(STATUS "LIBFMT_FOUND=${LIBFMT_FOUND}")
+
+# davep 20220311 ; temp disable because fmt having trouble on my r-pi (gcc8)
+#add_executable(wanstat $<TARGET_OBJECTS:netrc> $<TARGET_OBJECTS:opts> wanstat.cc)
+#target_compile_features(wanstat PUBLIC cxx_std_17)
+#target_link_libraries(wanstat PRIVATE cpprestsdk::cpprest)
+#target_link_libraries(wanstat PRIVATE ${Boost_LIBRARIES} ${FSLIB})
+#target_compile_options(wanstat PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+#target_include_directories(wanstat PUBLIC ${Boost_INCLUDE_DIRS})
+##target_link_libraries(wanstat PRIVATE fmt::fmt)
 
 add_executable(wlansurvey $<TARGET_OBJECTS:netrc> wlansurvey.cc)
 target_compile_features(wlansurvey PUBLIC cxx_std_17)
@@ -87,7 +93,7 @@ target_link_libraries(wlansurvey PRIVATE ${Boost_LIBRARIES} ${FSLIB})
 #https://stackoverflow.com/questions/23995019/what-is-the-modern-method-for-setting-general-compile-flags-in-cmake/23995391#23995391
 target_compile_options(wlansurvey PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 target_include_directories(wlansurvey PUBLIC ${Boost_INCLUDE_DIRS})
-#target_link_libraries(wlansurvey PRIVATE fmt::fmt)
+target_link_libraries(wlansurvey PRIVATE fmt)
 
 add_library(uri OBJECT uri.cc)
 target_compile_features(uri PUBLIC cxx_std_17)
@@ -116,13 +122,13 @@ add_test(
 add_executable(format format.cc)
 target_compile_features(format PUBLIC cxx_std_17)
 target_link_libraries(format PRIVATE ${Boost_LIBRARIES})
-#target_link_libraries(format PRIVATE fmt::fmt)
+target_link_libraries(format PRIVATE fmt)
 
 add_executable(sort sort.cc)
 target_compile_features(sort PUBLIC cxx_std_17)
 target_compile_options(sort PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 target_link_libraries(sort PRIVATE ${Boost_LIBRARIES})
-#target_link_libraries(sort PRIVATE fmt::fmt)
+target_link_libraries(sort PRIVATE fmt)
 
 # jsoncpp jsoncpp-devel
 # https://github.com/open-source-parsers/jsoncpp
@@ -136,6 +142,7 @@ target_link_libraries(sort PRIVATE ${Boost_LIBRARIES})
 # 	CMAKE_PREFIX_PATH=~/src/ cmake ..
 find_path(CPP_BASE64_INCLUDE_DIRS "cpp-base64/base64.cpp")
 message(STATUS "CPP_BASE64_INCLUDE_DIRS=${CPP_BASE64_INCLUDE_DIRS}")
+
 #find_package(nlohmann_json CONFIG REQUIRED)
 
 # davep 20210730 ; convert wanstat to boost::beast
@@ -149,12 +156,27 @@ target_link_libraries(http_client_sync PRIVATE Boost::boost)
 #target_link_libraries(http_client_sync PRIVATE nlohmann_json nlohmann_json::nlohmann_json)
 target_link_libraries(http_client_sync PRIVATE pthread)
 
+find_package(PkgConfig)
+pkg_check_modules(libnl REQUIRED libnl-3.0)
+message("libnl found=${libnl_FOUND} ${libnl_INCLUDE_DIRS} ${libnl_LDFLAGS}" )
+pkg_check_modules(libnl_genl REQUIRED libnl-genl-3.0)
+message("libnl_genl_genl found=${libnl_genl_FOUND} ${libnl_genl_INCLUDE_DIRS} ${libnl_genl_LDFLAGS}" )
+
+# find my libiw
+# hint: CMAKE_INCLUDE_PATH=~/src/duwt/libiw cmake ..
+message(STATUS "PREFIX_PATH=${CMAKE_PREFIX_PATH}")
+find_library(LIBIW libiw.a REQUIRED)
+message(STATUS "LIBIW_FOUND=${LIBIW_FOUND}")
+message(STATUS "LIBIW=${LIBIW}")
+get_filename_component(LIBIW_PATH ${LIBIW} DIRECTORY)
+find_path(LIBIW_H iw.h)
+message(STATUS "LIBIW_H=${LIBIW_H-NOTFOUND}")
+message(STATUS "LIBIW_H=${LIBIW_H}")
+
 # davep 20220211 ; move cfg80211 c++ from duwt to this project
-add_library(duwt STATIC cfg80211/oui.cc cfg80211/mimetypes.cc cfg80211/survey.cc)
-target_include_directories(duwt PUBLIC ${libnl_INCLUDE_DIRS} ${jsoncpp_INCLUDE_DIRS})
-target_include_directories(duwt PUBLIC ${libnl_INCLUDE_DIRS} ${jsoncpp_INCLUDE_DIRS})
-target_include_directories(duwt PUBLIC libiw)
-target_compile_options(duwt PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
+add_library(cfg80211 STATIC cfg80211/oui.cc cfg80211/mimetypes.cc cfg80211/survey.cc)
+target_include_directories(cfg80211 PUBLIC ${libnl_INCLUDE_DIRS} ${jsoncpp_INCLUDE_DIRS} ${LIBIW_H})
+target_compile_options(cfg80211 PUBLIC $<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>)
 
 add_executable(oui cfg80211/run_oui.cc cfg80211/oui.cc)
 
@@ -167,15 +189,15 @@ foreach(test IN ITEMS test_oui test_survey)
 	add_executable(${test} cfg80211/${test}.cc cfg80211/${test_target}.cc cfg80211/${test}_main.cc)
 
 	target_include_directories(${test} PUBLIC include)
-	target_link_libraries(${test} duwt jansson pthread)
-	target_include_directories(${test} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/libiw)
-	target_link_libraries(${test} iw ${libnl_LDFLAGS} ${libnl_genl_LDFLAGS} )
+	target_link_libraries(${test} ${LIBIW} jansson pthread)
+	target_include_directories(${test} PUBLIC ${libnl_INCLUDE_DIRS} ${LIBIW_PATH})
+	target_link_libraries(${test} ${libnl_LDFLAGS} ${libnl_genl_LDFLAGS} )
 
 	add_test(NAME ${test} COMMAND ${test} )
 endforeach()
 
 # TODO move test_mimetypes to catch.hpp
 add_executable(test_mimetypes cfg80211/test_mimetypes.cc)
-target_link_libraries(test_mimetypes duwt)
+target_link_libraries(test_mimetypes cfg80211)
 target_link_libraries(test_mimetypes stdc++fs)
 add_test(NAME test_mimetypes COMMAND test_mimetypes)

@@ -34,7 +34,8 @@ TEST_CASE("Load file", "[dumpfile]"){
 	// TODO add my own cli args to catch
 	const std::string dump_filename { "soup.dat" };
 	DEFINE_DL_LIST(bss_list);
-	int err = dumpfile_parse(dump_filename.c_str(), &bss_list);
+//	int err = dumpfile_parse(dump_filename.c_str(), &bss_list);
+	int err = -1;
 	REQUIRE(err==0);
 	std::cout << "dumpfile " << dump_filename << " loaded\n";
 
@@ -71,8 +72,7 @@ TEST_CASE("Load file", "[dumpfile]"){
 
 		// look for the last BSS in the Survey
 		struct BSS* findme = dl_list_last(&bss_list, struct BSS, node);
-		auto maybe_bss_ptr = survey.find(findme->bssid_str);
-		REQUIRE(maybe_bss_ptr.has_value());
+		auto  maybe_bss_ptr = survey.find(findme->bssid_str);
 
 		// verify we found what we were looking for
 		const struct BSS* found = maybe_bss_ptr.value();
@@ -125,10 +125,9 @@ TEST_CASE("Load file", "[dumpfile]"){
 		}
 
 		struct BSS* findme = dl_list_first(&bss_list, struct BSS, node);
-		auto maybe_json = survey.get_json_bssid(findme->bssid_str);
-		REQUIRE(maybe_json.has_value());
+		const std::string& json_bss = survey.get_json_bssid(findme->bssid_str);
 
-		std::cout << maybe_json.value().get() << "\n";
+		std::cout << json_bss << "\n";
 	}
 
 	SECTION("get_survey") {
@@ -150,7 +149,7 @@ TEST_CASE("Load file", "[dumpfile]"){
 
 		// load the same dumpfile into a separate list
 		DEFINE_DL_LIST(new_bss_list);
-		err = dumpfile_parse(dump_filename.c_str(), &new_bss_list);
+//		err = dumpfile_parse(dump_filename.c_str(), &new_bss_list);
 		REQUIRE(err==0);
 
 		// note: I'm repeatedly calling dl_list_len() instead of storing its
@@ -192,8 +191,7 @@ TEST_CASE("Load file", "[dumpfile]"){
 
 		// get some json
 		struct BSS* first = dl_list_first(&bss_list, struct BSS, node);
-		auto maybe_json = survey.get_json_bssid(first->bssid_str);
-		REQUIRE(maybe_json.has_value());
+		const std::string& maybe_json = survey.get_json_bssid(first->bssid_str);
 
 		// we will remove the BSS from the survey so must remove from the
 		// bss_list (survey.erase() will free() the BSS memory which would
@@ -214,14 +212,14 @@ TEST_CASE("Load file", "[dumpfile]"){
 
 		// at this point store() should have flushed the BSS from the json
 		// cache so a new json string would have to be generated
-		auto maybe_json_after_store = survey.get_json_bssid(bss->bssid_str);
-		REQUIRE(maybe_json_after_store.has_value());
+		const std::string& json_bss_after_store = survey.get_json_bssid(bss->bssid_str);
+//		REQUIRE(maybe_json_after_store.has_value());
 
 		// the new json should be teeny tiny
-		std::clog << maybe_json_after_store.value().get() << "\n";
+		std::clog << json_bss_after_store << "\n";
 
 		// the original json should be huge and the new json should be small
-		REQUIRE(maybe_json.value().get() != maybe_json_after_store.value().get());
+		REQUIRE(maybe_json != json_bss_after_store);
 
 		// save the bssid so can search for it after erase()
 		std::string new_bssid_str { bss->bssid_str };
@@ -232,8 +230,8 @@ TEST_CASE("Load file", "[dumpfile]"){
 
 		// at this point erase() should have flushed the BSS from the json
 		// cache 
-		auto maybe_json_after_del = survey.get_json_bssid(new_bssid_str);
-		REQUIRE(!maybe_json_after_del.has_value());
+		const std::string& json_bss  = survey.get_json_bssid(new_bssid_str);
+//		REQUIRE(!maybe_json_after_del.has_value());
 	}
 
 	SECTION("threads") {

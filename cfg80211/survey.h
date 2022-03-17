@@ -47,7 +47,8 @@ public:
 	// (note to future self: std::optional cannot contain references)
 	// https://stackoverflow.com/questions/26858034/stdoptional-specialization-for-reference-types
 //	std::optional<const std::string*> json_of(std::string bssid) const;
-	std::optional<std::reference_wrapper<const std::string>> get_json_bssid(std::string bssid);
+//	std::optional<std::reference_wrapper<const std::string>> get_json_bssid(std::string bssid);
+	const std::string& get_json_bssid(std::string bssid);
 
 	enum class Decode { full, short_ie };
 
